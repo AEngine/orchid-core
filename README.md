@@ -1,4 +1,4 @@
-Orchid-Core
+Orchid Core
 ====
 Orchid is lightweight web application framework.
 This library attempts to comply with PSR-1, PSR-2, PSR-4 and PSR-11. 

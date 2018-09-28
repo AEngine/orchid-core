@@ -3,26 +3,18 @@
 namespace AEngine\Orchid;
 
 use AEngine\Orchid\Interfaces\ModelInterface;
+use BadMethodCallException;
 
 abstract class Model implements ModelInterface
 {
     /**
-     * Array of fields describing the model
+     * Model constructor
      *
-     * @var array
+     * @param array $data
      */
-    protected static $field = [];
-
-    /**
-     * Model data array
-     *
-     * @var array
-     */
-    protected $data = [];
-
     final public function __construct(array $data = [])
     {
-        $this->replace(array_merge(static::$field, $data));
+        $this->replace($data);
     }
 
     /**
@@ -34,7 +26,7 @@ abstract class Model implements ModelInterface
      */
     public function get($key)
     {
-        return $this->data[$key] ?? static::$field[$key];
+        return $this->$key;
     }
 
     /**
@@ -47,9 +39,7 @@ abstract class Model implements ModelInterface
      */
     public function set($key, $value)
     {
-        if (array_key_exists($key, static::$field)) {
-            $this->data[$key] = $value;
-        }
+        $this->$key = $value;
 
         return $this;
     }
@@ -64,7 +54,7 @@ abstract class Model implements ModelInterface
     public function replace(array $data)
     {
         foreach ($data as $key => $value) {
-            $this->set($key, $value);
+            $this->$key = $value;
         }
 
         return $this;
@@ -79,17 +69,21 @@ abstract class Model implements ModelInterface
      */
     public function has($key)
     {
-        return $this->data[$key] ?? false;
+        return isset($this->$key);
     }
 
     /**
-     * Check whether the model is empty
+     * Check whether the key is empty
      *
      * @return bool
      */
     public function isEmpty()
     {
-        return static::$field === $this->data;
+        foreach (get_object_vars($this) as $value) {
+            if (!empty($value)) return false;
+        }
+
+        return true;
     }
 
     /**
@@ -101,7 +95,7 @@ abstract class Model implements ModelInterface
      */
     public function delete($key)
     {
-        $this->data[$key] = static::$field[$key];
+        $this->$key = null;
 
         return $this;
     }
@@ -113,7 +107,9 @@ abstract class Model implements ModelInterface
      */
     public function clear()
     {
-        $this->data = static::$field;
+        foreach (get_object_vars($this) as $key => $value) {
+            $this->$key = null;
+        }
 
         return $this;
     }
@@ -125,7 +121,7 @@ abstract class Model implements ModelInterface
      */
     public function toArray()
     {
-        return $this->data;
+        return get_object_vars($this);
     }
 
     /**
@@ -135,6 +131,35 @@ abstract class Model implements ModelInterface
      */
     public function __toString()
     {
-        return json_encode($this->data, JSON_UNESCAPED_UNICODE);
+        return json_encode(get_object_vars($this), JSON_UNESCAPED_UNICODE);
+    }
+
+    /**
+     * Error handler for unknown property accessor in Annotation class
+     *
+     * @param string $key Unknown property name
+     *
+     * @throws BadMethodCallException
+     */
+    public function __get($key)
+    {
+        throw new BadMethodCallException(
+            sprintf("Unknown property '%s' in class '%s'.", $key, get_class($this))
+        );
+    }
+
+    /**
+     * Error handler for unknown property mutator in Annotation class
+     *
+     * @param string $key   Unknown property name
+     * @param mixed  $value Property value
+     *
+     * @throws BadMethodCallException
+     */
+    public function __set($key, $value)
+    {
+        throw new BadMethodCallException(
+            sprintf("Unknown property '%s' in class '%s'.", $key, get_class($this))
+        );
     }
 }

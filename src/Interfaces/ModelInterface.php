@@ -24,4 +24,8 @@ interface ModelInterface
     public function toArray();
 
     public function __toString();
+
+    public function __get($key);
+
+    public function __set($key, $value);
 }

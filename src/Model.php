@@ -5,6 +5,9 @@ namespace AEngine\Orchid;
 use AEngine\Orchid\Interfaces\ModelInterface;
 use BadMethodCallException;
 
+/**
+ * Class Model
+ */
 abstract class Model implements ModelInterface
 {
     /**
@@ -12,7 +15,7 @@ abstract class Model implements ModelInterface
      *
      * @param array $data
      */
-    final public function __construct(array $data = [])
+    public function __construct(array $data = [])
     {
         $this->replace($data);
     }

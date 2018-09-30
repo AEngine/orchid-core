@@ -103,23 +103,6 @@ class AnnotationReader
                     if (in_array('@' . $name, static::$tags)) continue;
                 }
 
-                // ensure that the class exists
-                if (!class_exists($name)) {
-                    if (in_array($element->getAnnotatedElementType(), ['CONSTRUCTOR', 'METHOD', 'PROPERTY'])) {
-                        $declaringClass = $element->getDeclaringClass();
-                    } else {
-                        $declaringClass = $element;
-                    }
-                    $name = explode('\\', $name, 2);
-                    $name = end($name);
-
-                    foreach (static::parseClass($declaringClass) as $namespace) {
-                        if (class_exists($namespace . '\\' . $name)) {
-                            $name = $namespace . '\\' . $name;
-                        }
-                    }
-                }
-
                 $result = static::create($element, $name, $args, $props);
 
                 if ($result != null) {
@@ -180,6 +163,28 @@ class AnnotationReader
      */
     protected static function create(AnnotatedInterface $element, $name, array $args = [], array $props = [])
     {
+        // ensure that the class exists
+        if (!class_exists($name)) {
+            if (in_array($element->getAnnotatedElementType(), ['CONSTRUCTOR', 'METHOD', 'PROPERTY'])) {
+                $declaringClass = $element->getDeclaringClass();
+            } else {
+                $declaringClass = $element;
+            }
+            $name = explode('\\', $name, 2);
+            $name = end($name);
+
+            foreach (static::parseClass($declaringClass) as $lowercaseName => $namespace) {
+                switch (true) {
+                    case strtolower($name) === $lowercaseName:
+                        $name = $namespace;
+                        break;
+                    case class_exists($namespace . '\\' . $name):
+                        $name = $namespace . '\\' . $name;
+                        break;
+                }
+            }
+        }
+
         $class = new AnnotatedReflectionClass($name);
 
         // ensure that class is a subclass of Annotation

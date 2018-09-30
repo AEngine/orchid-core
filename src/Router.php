@@ -10,9 +10,6 @@ use Psr\Http\Message\ServerRequestInterface;
 use InvalidArgumentException;
 use RuntimeException;
 
-/**
- * Router
- */
 class Router implements RouterInterface
 {
     /**

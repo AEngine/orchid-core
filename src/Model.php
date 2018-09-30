@@ -5,9 +5,6 @@ namespace AEngine\Orchid;
 use AEngine\Orchid\Interfaces\ModelInterface;
 use BadMethodCallException;
 
-/**
- * Class Model
- */
 abstract class Model implements ModelInterface
 {
     /**

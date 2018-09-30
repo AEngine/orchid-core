@@ -12,9 +12,6 @@ use Throwable;
 use InvalidArgumentException;
 use UnexpectedValueException;
 
-/**
- * Route
- */
 class Route implements RouteInterface
 {
     use MiddlewareTrait;

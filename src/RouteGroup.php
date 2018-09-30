@@ -5,9 +5,6 @@ namespace AEngine\Orchid;
 use Closure;
 use AEngine\Orchid\Interfaces\RouteGroupInterface;
 
-/**
- * RouteGroup
- */
 class RouteGroup implements RouteGroupInterface
 {
     /**

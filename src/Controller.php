@@ -2,9 +2,6 @@
 
 namespace AEngine\Orchid;
 
-/**
- * Controller
- */
 abstract class Controller
 {
     /**

@@ -93,7 +93,7 @@ class AnnotatedReflectionClass extends ReflectionClass implements AnnotatedInter
      *
      * @param null $filter
      *
-     * @return ReflectionMethod[]
+     * @return AnnotatedReflectionMethod[]
      * @throws ReflectionException
      */
     public function getMethods($filter = null)
@@ -142,7 +142,7 @@ class AnnotatedReflectionClass extends ReflectionClass implements AnnotatedInter
      *
      * @param null $filter
      *
-     * @return ReflectionProperty[]
+     * @return AnnotatedReflectionProperty[]
      * @throws ReflectionException
      */
     public function getProperties($filter = null)

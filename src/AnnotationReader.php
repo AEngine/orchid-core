@@ -11,9 +11,6 @@ use ReflectionException;
 use SplFileObject;
 use RuntimeException;
 
-/**
- * Class AnnotationReader
- */
 class AnnotationReader
 {
     // tags used for generating PHP Docs (http://www.phpdoc.org/)

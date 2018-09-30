@@ -6,7 +6,6 @@ use AEngine\Orchid\Annotated\AnnotatedReflectionClass;
 use AEngine\Orchid\Annotation\AnnotationTarget;
 use AEngine\Orchid\Helper\TokenParser;
 use AEngine\Orchid\Interfaces\AnnotatedInterface;
-use ReflectionClass;
 use ReflectionException;
 use SplFileObject;
 use RuntimeException;
@@ -111,7 +110,7 @@ class AnnotationReader
                     } else {
                         $declaringClass = $element;
                     }
-                    $name = explode('/', $name);
+                    $name = explode('\\', $name, 2);
                     $name = end($name);
 
                     foreach (static::parseClass($declaringClass) as $namespace) {
@@ -237,7 +236,7 @@ class AnnotationReader
     }
 
     /**
-     * @param ReflectionClass $class
+     * @param $class
      *
      * @return array
      */

@@ -3,7 +3,10 @@ Orchid changelog
 The latest version of this file can be found at the master branch of the
 Orchid repository.
 
-## 1.1.1 (2018-03-30)
+## 1.2.0 (2018-10-01)
+- Add Annotation functional
+
+### 1.1.1 (2018-03-30)
 - Fix collection valid method
 
 ### 1.1.0 (2018-03-23)

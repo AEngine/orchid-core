@@ -135,7 +135,7 @@ abstract class Model implements ModelInterface
     }
 
     /**
-     * Error handler for unknown property accessor in Annotation class
+     * Error handler for unknown property accessor in Model class
      *
      * @param string $key Unknown property name
      *
@@ -149,7 +149,7 @@ abstract class Model implements ModelInterface
     }
 
     /**
-     * Error handler for unknown property mutator in Annotation class
+     * Error handler for unknown property mutator in Model class
      *
      * @param string $key   Unknown property name
      * @param mixed  $value Property value

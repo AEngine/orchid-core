@@ -1,7 +1,6 @@
-Orchid changelog
+Changelog
 ====
-The latest version of this file can be found at the master branch of the
-Orchid repository.
+The latest version of this file can be found at the master branch of the this repository.
 
 ## 1.2.1 (2018-10-01)
 - Remove annotation in a separate repo orchid-annotation

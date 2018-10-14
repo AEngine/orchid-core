@@ -143,8 +143,7 @@ namespace AEngine\Orchid {
             static $request;
 
             if (!$request) {
-                $env     = new Environment($_SERVER);
-                $request = Request::createFromEnvironment($env);
+                $request = Request::createFromGlobals(Environment::mock($_SERVER));
             }
 
             return $request;

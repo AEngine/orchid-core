@@ -2,7 +2,10 @@ Changelog
 ====
 The latest version of this file can be found at the master branch of the this repository.
 
-## 1.2.1 (2018-10-01)
+## 1.2.2 (2018-10-14)
+- Update Orchid-Message package
+
+### 1.2.1 (2018-10-01)
 - Remove annotation in a separate repo orchid-annotation
 
 ### 1.2.0 (2018-10-01)

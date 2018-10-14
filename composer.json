@@ -20,7 +20,7 @@
     "require": {
         "php": ">=7.0",
         "pimple/pimple": "^3.0",
-        "aengine/orchid-message": "^1.0.0"
+        "aengine/orchid-message": "^1.1"
     },
     "provide": {
         "psr/container-implementation": "1.0"

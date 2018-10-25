@@ -4,20 +4,24 @@ declare(strict_types=1);
 
 namespace AEngine\Orchid {
 
-    use Closure;
     use DirectoryIterator;
-    use AEngine\Orchid\Exception\FileNotFoundException;
-    use AEngine\Orchid\Message\Body;
-    use AEngine\Orchid\Message\Environment;
-    use AEngine\Orchid\Message\Headers;
     use AEngine\Orchid\Message\Request;
     use AEngine\Orchid\Message\Response;
+    use AEngine\Orchid\Exception\FileNotFoundException;
     use AEngine\Orchid\Handler\RenderError;
     use AEngine\Orchid\Handler\RenderLegacyError;
+    use Psr\Container\ContainerInterface;
     use Psr\Http\Message\ResponseInterface;
+    use BadMethodCallException;
+    use InvalidArgumentException;
     use RuntimeException;
     use Throwable;
 
+    /**
+     * @method Request request();
+     * @method Response response();
+     * @method Router router();
+     */
     class App
     {
         /**
@@ -28,27 +32,9 @@ namespace AEngine\Orchid {
         protected static $instance;
 
         /**
-         * Default app settings
-         *
-         * @var array
+         * @var Container
          */
-        protected $defaultConfig = [
-            'debug'       => true,
-            'app.name'    => 'public',
-            'app.list'    => [],
-            'autoload'    => [],
-            'module.list' => [],
-            'secret'      => 'orchid secret',
-            'args'        => [],
-            'base_dir'    => '',
-            'base_host'   => '',
-            'base_port'   => 0,
-        ];
-
-        /**
-         * @var array
-         */
-        protected $config = [];
+        protected $container;
 
         /**
          * @var array
@@ -56,44 +42,22 @@ namespace AEngine\Orchid {
         protected $paths = [];
 
         /**
-         * Storage closure of services
-         *
-         * @var array
-         */
-        protected $closures = [];
-
-        /**
          * App constructor
          *
-         * @param array $config
+         * @param ContainerInterface|array $container
          */
-        protected function __construct(array $config = [])
+        protected function __construct($container = [])
         {
-            $this->config = array_replace_recursive($this->defaultConfig, $config);
-
-            // set base dir
-            if (!$this->config['base_dir']) {
-                if (!empty($_SERVER['DOCUMENT_ROOT'])) {
-                    $this->config['base_dir'] = $_SERVER['DOCUMENT_ROOT'];
-                } elseif (defined('ORCHID')) {
-                    $this->config['base_dir'] = ORCHID;
-                }
+            if (is_array($container)) {
+                $container = new Container($container);
+            }
+            if (!$container instanceof ContainerInterface) {
+                throw new InvalidArgumentException('Expected a ContainerInterface');
             }
 
-            // set base host
-            if (!$this->config['base_host'] && isset($_SERVER['HTTP_HOST'])) {
-                $this->config['base_host'] = $_SERVER['HTTP_HOST'];
-            }
+            $this->container = $container;
 
-            // set base port
-            if (!$this->config['base_port'] && isset($_SERVER['SERVER_PORT'])) {
-                $this->config['base_port'] = $_SERVER['SERVER_PORT'];
-            }
-
-            // cli mode
-            if (PHP_SAPI == 'cli') {
-                $this->config['args'] = array_slice($_SERVER['argv'], 1);
-            } else {
+            if (PHP_SAPI != 'cli') {
                 set_exception_handler(function (Throwable $ex) {
                     ob_end_clean();
 
@@ -105,7 +69,7 @@ namespace AEngine\Orchid {
 
             // register auto loader
             spl_autoload_register(function ($class) use ($self) {
-                foreach ($self->config['autoload'] as $dir) {
+                foreach ($self->get('autoload') as $dir) {
                     $class_path = $dir . '/' . str_replace(['\\', '_'], '/', $class) . '.php';
 
                     if (file_exists($class_path)) {
@@ -134,68 +98,13 @@ namespace AEngine\Orchid {
         }
 
         /**
-         * Return request
-         *
-         * @return Request
-         */
-        public function &request()
-        {
-            static $request;
-
-            if (!$request) {
-                $request = Request::createFromGlobals(Environment::mock($_SERVER));
-            }
-
-            return $request;
-        }
-
-        /**
-         * Return response
-         *
-         * @return Response
-         */
-        public function &response()
-        {
-            static $response;
-
-            if (!$response) {
-                $headers  = new Headers(['Content-Type' => 'text/html; charset=UTF-8']);
-                $response = (new Response(200, $headers))->withProtocolVersion('1.1');
-            }
-
-            return $response;
-        }
-
-        /**
-         * Return router
-         *
-         * @return Router
-         */
-        public function &router()
-        {
-            static $router;
-
-            if (!$router) {
-                $router = new Router();
-            }
-
-            return $router;
-        }
-
-        /**
          * Return internal container storage
          *
          * @return Container
          */
-        public function &container()
+        public function &getContainer()
         {
-            static $container;
-
-            if (!$container) {
-                $container = new Container();
-            }
-
-            return $container;
+            return $this->container;
         }
 
         /**
@@ -218,7 +127,11 @@ namespace AEngine\Orchid {
          */
         public function get($key, $default = null)
         {
-            return $this->config[$key] ?? $default;
+            if ($this->container->has($key)) {
+                return $this->container->get($key);
+            }
+
+            return $default;
         }
 
         /**
@@ -235,14 +148,18 @@ namespace AEngine\Orchid {
          */
         public function add($key, ...$element)
         {
+            $buf = (array)$this->get($key, []);
+
             switch (count($element)) {
                 case 1:
-                    $this->config[$key][] = $element[0];
+                    $buf[] = $element[0];
                     break;
                 case 2:
-                    $this->config[$key][$element[0]] = $element[1];
+                    $buf[$element[0]] = $element[1];
                     break;
             }
+
+            $this->set($key, $buf);
 
             return $this;
         }
@@ -257,7 +174,7 @@ namespace AEngine\Orchid {
          */
         public function set($key, $value)
         {
-            $this->config[$key] = $value;
+            $this->container->set($key, $value);
 
             return $this;
         }
@@ -283,7 +200,7 @@ namespace AEngine\Orchid {
         public function setApp($name)
         {
             if (in_array($name, $this->get('app.list', []))) {
-                $this->config['app.name'] = $name;
+                $this->set('app.name', $name);
 
                 return true;
             }
@@ -304,7 +221,7 @@ namespace AEngine\Orchid {
         {
             foreach ($folders as $folder) {
                 // add folder to autoload
-                $this->config['autoload'][] = $folder;
+                $this->add('autoload', $folder);
 
                 foreach (new DirectoryIterator($folder) as $element) {
                     if (!$element->isDot() && (
@@ -312,7 +229,7 @@ namespace AEngine\Orchid {
                             $element->isFile() && $element->getExtension() == 'php'
                         )
                     ) {
-                        $dir  = $element->getRealPath();
+                        $dir = $element->getRealPath();
                         $name = $class = $element->getBasename('.php');
 
                         if (!is_file($dir)) {
@@ -342,7 +259,7 @@ namespace AEngine\Orchid {
                             );
                         }
 
-                        $this->config['module.list'][] = $name;
+                        $this->add('module.list', $name);
                     }
                 }
             }
@@ -454,7 +371,7 @@ namespace AEngine\Orchid {
          */
         public function getBaseDir()
         {
-            return $this->get('base_dir');
+            return $this->get('base.dir');
         }
 
         /**
@@ -464,7 +381,7 @@ namespace AEngine\Orchid {
          */
         public function getBaseHost()
         {
-            return $this->get('base_host');
+            return $this->get('base.host');
         }
 
         /**
@@ -474,7 +391,7 @@ namespace AEngine\Orchid {
          */
         public function getBasePort()
         {
-            return (int)$this->get('base_port');
+            return (int)$this->get('base.port');
         }
 
         /**
@@ -499,7 +416,7 @@ namespace AEngine\Orchid {
         public function pathToUrl($path)
         {
             if (($file = $this->path($path)) != false) {
-                return '/' . ltrim(str_replace($this->get('base_dir'), '', $file), '/');
+                return '/' . ltrim(str_replace($this->get('base.dir'), '', $file), '/');
             }
 
             return false;
@@ -524,9 +441,13 @@ namespace AEngine\Orchid {
             $response = $this->response();
 
             // dispatch route
-            $response = $this->router()
-                ->dispatch($request)
-                ->callMiddlewareStack($request, $response);
+            $route = $this->router()->dispatch($request);
+
+            // set output buffering mode
+            $route->setOutputBuffering($this->container->get('settings')['outputBuffering']);
+
+            // call route
+            $route->callMiddlewareStack($request, $response);
 
             // if error
             if (($error = error_get_last()) && error_reporting() & $error['type']) {
@@ -572,7 +493,7 @@ namespace AEngine\Orchid {
                 if ($body->isSeekable()) {
                     $body->rewind();
                 }
-                $chunkSize     = 4096;
+                $chunkSize = $this->container->get('settings')['responseChunkSize'];
                 $contentLength = $response->getHeaderLine('Content-Length');
                 if (!$contentLength) {
                     $contentLength = $body->getSize();
@@ -620,49 +541,27 @@ namespace AEngine\Orchid {
         }
 
         /**
-         * Add closure
+         * Calling a non-existant method on App checks to see if there's an item
+         * in the container that is callable and if so, calls it.
          *
-         * @param string  $name
-         * @param Closure $callable
-         *
-         * @return bool
-         * @throws RuntimeException
-         */
-        public function addClosure($name, $callable)
-        {
-            if (is_string($name) && !isset($this->closures[$name])) {
-                $this->closures[$name] = function ($param = null) use ($callable) {
-                    static $object;
-
-                    if ($object === null) {
-                        $object = $callable($param);
-                    }
-
-                    return $object;
-                };
-
-                return true;
-            }
-
-            throw new RuntimeException('Failed to add closure "' . $name . '"');
-        }
-
-        /**
-         * Return the result of the work closure
-         *
-         * @param string $name
-         * @param array  ...$param
+         * @param  string $method
+         * @param  array  $args
          *
          * @return mixed
-         * @throws RuntimeException
          */
-        public function getClosure($name, ...$param)
+        public function __call($method, $args)
         {
-            if (is_string($name) && array_key_exists($name, $this->closures) && is_callable($this->closures[$name])) {
-                return call_user_func_array($this->closures[$name], $param);
+            if ($this->getContainer()->has($method)) {
+                $obj = $this->getContainer()->get($method);
+
+                if (is_callable($obj)) {
+                    return call_user_func_array($obj, $args);
+                }
+
+                return $obj;
             }
 
-            throw new RuntimeException('Unable to complete closure "' . $name . '"');
+            throw new BadMethodCallException("Method $method is not a valid method");
         }
 
         protected function __clone()

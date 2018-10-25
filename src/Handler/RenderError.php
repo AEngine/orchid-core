@@ -4,11 +4,17 @@ namespace AEngine\Orchid\Handler;
 
 use AEngine\Orchid\App;
 use AEngine\Orchid\Message\Body;
+use AEngine\Orchid\Message\Response;
 use Throwable;
 use UnexpectedValueException;
 
 class RenderError extends AbstractError
 {
+    /**
+     * @param Throwable $error
+     *
+     * @return Response
+     */
     public static function render(Throwable $error)
     {
         $app = App::getInstance();

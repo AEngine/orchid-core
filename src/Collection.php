@@ -104,6 +104,27 @@ class Collection implements CollectionInterface
     }
 
     /**
+     * Search the collection for a given value and return the corresponding key if successful.
+     *
+     * @param  mixed $value
+     * @param  bool  $strict
+     *
+     * @return mixed
+     */
+    public function search($value, $strict = false)
+    {
+        if (is_callable($value)) {
+            foreach ($this->data as $key => $item) {
+                if (call_user_func($value, $item, $key)) {
+                    return $key;
+                }
+            }
+        }
+
+        return array_search($value, $this->data, $strict);
+    }
+
+    /**
      * Get all items in collection
      *
      * @return array The collection's source data
@@ -283,7 +304,7 @@ class Collection implements CollectionInterface
     {
         if (is_string($param)) {
             usort($this->data, $this->sortProperty($param));
-        } elseif (is_callable($param)) {
+        } else if (is_callable($param)) {
             usort($this->data, $this->sortCallable($param, $args));
         }
 
@@ -434,7 +455,7 @@ class Collection implements CollectionInterface
     /**
      * Set collection item
      *
-     * @param string $key The data key
+     * @param string $key   The data key
      * @param mixed  $value The data value
      */
     public function offsetSet($key, $value)

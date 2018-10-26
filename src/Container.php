@@ -79,7 +79,7 @@ class Container extends PimpleContainer implements ContainerInterface
                     user_error(sprintf('Config key with name %s is deprecated, see default config in App class.', $key));
                 }
 
-                $value[str_replace('_', '.', $key)] = $value;
+                $values[str_replace('_', '.', $key)] = $value;
                 unset($values[$key]);
             }
         }

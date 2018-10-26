@@ -2,6 +2,7 @@
 
 use AEngine\Orchid\Collection;
 use AEngine\Orchid\Support\Arr;
+use AEngine\Orchid\Support\Crypta;
 use AEngine\Orchid\Support\Str;
 
 if (!function_exists('pre')) {
@@ -296,5 +297,63 @@ if (! function_exists('str_un_escape')) {
     function str_un_escape($input)
     {
         return Str::unEscape($input);
+    }
+}
+
+if (! function_exists('crypta_encrypt')) {
+    /**
+     * Encrypt transmitted string
+     *
+     * @param string $input
+     *
+     * @return string
+     */
+    function crypta_encrypt($input)
+    {
+        return Crypta::encrypt($input);
+    }
+}
+
+if (! function_exists('crypta_decrypt')) {
+    /**
+     * Decrypt passed string
+     *
+     * @param string $input
+     *
+     * @return string
+     */
+    function crypta_decrypt($input)
+    {
+        return Crypta::decrypt($input);
+    }
+}
+
+if (! function_exists('crypta_hash')) {
+    /**
+     * Generate hash sum for a row
+     *
+     * @param string $string
+     *
+     * @return string
+     */
+    function crypta_hash($string)
+    {
+        return Crypta::hash($string);
+    }
+}
+
+if (! function_exists('crypta_hash_check')) {
+    /**
+     * Check string against the hash sum
+     *
+     * @param string $string
+     * @param string $hashString
+     *
+     * @return bool
+     */
+
+    function crypta_hash_check($string, $hashString)
+    {
+        return Crypta::check($string, $hashString);
     }
 }

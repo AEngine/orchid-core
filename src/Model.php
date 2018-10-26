@@ -3,10 +3,13 @@
 namespace AEngine\Orchid;
 
 use AEngine\Orchid\Interfaces\ModelInterface;
+use AEngine\Orchid\Traits\Macroable;
 use BadMethodCallException;
 
 abstract class Model implements ModelInterface
 {
+    use Macroable;
+
     /**
      * Model constructor
      *

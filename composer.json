@@ -18,7 +18,9 @@
         }
     ],
     "require": {
-        "php": ">=7.0",
+        "php": ">=7.1",
+        "ext-mbstring": "*",
+        "ext-json": "*",
         "pimple/pimple": "^3.0",
         "aengine/orchid-message": "^1.1"
     },
@@ -28,6 +30,7 @@
     "autoload": {
         "psr-4": {
             "AEngine\\Orchid\\": "src/"
-        }
+        },
+        "files": ["src/helpers.php"]
     }
 }

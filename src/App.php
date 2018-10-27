@@ -41,6 +41,14 @@ class App
      */
     protected function __construct($container = [])
     {
+        if (PHP_SAPI != 'cli') {
+            set_exception_handler(function (Throwable $ex) {
+                ob_end_clean();
+
+                $this->respond(RenderError::render($ex));
+            });
+        }
+
         if (is_array($container)) {
             $container = new Container($container);
         }
@@ -49,14 +57,6 @@ class App
         }
 
         $this->container = $container;
-
-        if (PHP_SAPI != 'cli') {
-            set_exception_handler(function (Throwable $ex) {
-                ob_end_clean();
-
-                $this->respond(RenderError::render($ex));
-            });
-        }
 
         $self = $this;
 
@@ -81,16 +81,16 @@ class App
      */
     public function respond(ResponseInterface $response)
     {
-        // Send response
+        // send response
         if (!headers_sent()) {
-            // Status
+            // status
             header(sprintf(
                 'HTTP/%s %s %s',
                 $response->getProtocolVersion(),
                 $response->getStatusCode(),
                 $response->getReasonPhrase()
             ));
-            // Headers
+            // headers
             foreach ($response->getHeaders() as $name => $values) {
                 foreach ($values as $value) {
                     header(sprintf('%s: %s', $name, $value), false);
@@ -98,7 +98,7 @@ class App
             }
         }
 
-        // Body
+        // body
         if (!$this->isEmptyResponse($response)) {
             $body = $response->getBody();
             if ($body->isSeekable()) {

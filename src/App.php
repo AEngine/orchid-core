@@ -131,7 +131,7 @@ class App
             return $this->container->get($key);
         }
 
-        return $default;
+        return value($default);
     }
 
     /**

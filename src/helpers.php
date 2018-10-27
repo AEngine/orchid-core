@@ -3,6 +3,7 @@
 use AEngine\Orchid\Collection;
 use AEngine\Orchid\Support\Arr;
 use AEngine\Orchid\Support\Crypta;
+use AEngine\Orchid\Support\Session;
 use AEngine\Orchid\Support\Str;
 
 if (!function_exists('pre')) {
@@ -259,11 +260,12 @@ if (!function_exists('str_truncate')) {
     }
 }
 
-if (! function_exists('str_title_case')) {
+if (!function_exists('str_title_case')) {
     /**
      * Convert a value to title case.
      *
-     * @param  string  $value
+     * @param  string $value
+     *
      * @return string
      */
     function str_title_case($value)
@@ -272,7 +274,7 @@ if (! function_exists('str_title_case')) {
     }
 }
 
-if (! function_exists('str_escape')) {
+if (!function_exists('str_escape')) {
     /**
      * Escape a string or an array of strings
      *
@@ -286,7 +288,7 @@ if (! function_exists('str_escape')) {
     }
 }
 
-if (! function_exists('str_un_escape')) {
+if (!function_exists('str_un_escape')) {
     /**
      * Remove the screening in a row or an array of strings
      *
@@ -300,7 +302,21 @@ if (! function_exists('str_un_escape')) {
     }
 }
 
-if (! function_exists('crypta_encrypt')) {
+if (!function_exists('str_convert_size')) {
+    /**
+     * Returns a string representation of the data size
+     *
+     * @param int $size
+     *
+     * @return string
+     */
+    function str_convert_size($size)
+    {
+        return Str::convertSize($size);
+    }
+}
+
+if (!function_exists('crypta_encrypt')) {
     /**
      * Encrypt transmitted string
      *
@@ -314,7 +330,7 @@ if (! function_exists('crypta_encrypt')) {
     }
 }
 
-if (! function_exists('crypta_decrypt')) {
+if (!function_exists('crypta_decrypt')) {
     /**
      * Decrypt passed string
      *
@@ -328,7 +344,7 @@ if (! function_exists('crypta_decrypt')) {
     }
 }
 
-if (! function_exists('crypta_hash')) {
+if (!function_exists('crypta_hash')) {
     /**
      * Generate hash sum for a row
      *
@@ -342,7 +358,7 @@ if (! function_exists('crypta_hash')) {
     }
 }
 
-if (! function_exists('crypta_hash_check')) {
+if (!function_exists('crypta_hash_check')) {
     /**
      * Check string against the hash sum
      *
@@ -355,5 +371,63 @@ if (! function_exists('crypta_hash_check')) {
     function crypta_hash_check($string, $hashString)
     {
         return Crypta::check($string, $hashString);
+    }
+}
+
+if (!function_exists('user_session_create')) {
+    /**
+     * Create new session with the given name
+     *
+     * @param string $name
+     */
+    function user_session_create($name = 'session')
+    {
+        Session::create($name);
+    }
+}
+if (!function_exists('user_session_set')) {
+    /**
+     * Writes the data in the current session
+     *
+     * @param string $key
+     * @param string $value
+     */
+    function user_session_set($key, $value)
+    {
+        Session::set($key, $value);
+    }
+}
+if (!function_exists('user_session_get')) {
+    /**
+     * Return data from the current session of the given key
+     *
+     * @param string $key
+     * @param mixed  $default
+     *
+     * @return mixed
+     */
+    function user_session_get($key, $default = null)
+    {
+        return Session::get($key, $default);
+    }
+}
+if (!function_exists('user_session_remove')) {
+    /**
+     * Removes data from the current session of the given key
+     *
+     * @param string $key
+     */
+    function user_session_remove($key)
+    {
+        Session::remove($key);
+    }
+}
+if (!function_exists('user_session_destroy')) {
+    /**
+     * Destroys the current session
+     */
+    function user_session_destroy()
+    {
+        Session::destroy();
     }
 }

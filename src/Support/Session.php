@@ -2,8 +2,12 @@
 
 namespace AEngine\Orchid\Support;
 
+use AEngine\Orchid\Traits\Macroable;
+
 class Session
 {
+    use Macroable;
+
     /**
      * Create new session with the given name
      *

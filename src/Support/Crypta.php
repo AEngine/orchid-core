@@ -2,10 +2,12 @@
 
 namespace AEngine\Orchid\Support;
 
-use AEngine\Orchid\App;
+use AEngine\Orchid\Traits\Macroable;
 
 class Crypta
 {
+    use Macroable;
+
     /**
      * Encrypt transmitted string
      *
@@ -27,7 +29,7 @@ class Crypta
      */
     protected static function crypt($input)
     {
-        $salt = md5(App::getInstance()->getSecret());
+        $salt = md5(app()->getSecret());
         $len = mb_strlen($input);
         $gamma = '';
         $n = $len > 100 ? 8 : 2;
@@ -59,7 +61,7 @@ class Crypta
      */
     public static function hash($string)
     {
-        $salt = substr(hash('whirlpool', uniqid(mt_rand() . App::getInstance()->getSecret(), true)), 0, 12);
+        $salt = substr(hash('whirlpool', uniqid(mt_rand() . app()->getSecret(), true)), 0, 12);
         $hash = hash('whirlpool', $salt . $string);
         $saltPos = (mb_strlen($string) >= mb_strlen($hash) ? mb_strlen($hash) : mb_strlen($string));
 

@@ -1,10 +1,26 @@
 <?php
 
+use AEngine\Orchid\App;
 use AEngine\Orchid\Collection;
 use AEngine\Orchid\Support\Arr;
 use AEngine\Orchid\Support\Crypta;
+use AEngine\Orchid\Support\i18n;
 use AEngine\Orchid\Support\Session;
 use AEngine\Orchid\Support\Str;
+
+if (!function_exists('app')) {
+    /**
+     * Return App instance
+     *
+     * @param array $config
+     *
+     * @return App
+     */
+    function app($config = [])
+    {
+        return App::getInstance($config);
+    }
+}
 
 if (!function_exists('pre')) {
     /**
@@ -371,6 +387,24 @@ if (!function_exists('crypta_hash_check')) {
     function crypta_hash_check($string, $hashString)
     {
         return Crypta::check($string, $hashString);
+    }
+}
+
+if (!function_exists('l')) {
+    /**
+     * Returns internationalized text for the specified key
+     *
+     * @param $key
+     *
+     * @return mixed
+     */
+    function l($key)
+    {
+        if (isset(i18n::$locale[$key])) {
+            return i18n::$locale[$key];
+        }
+
+        return '{' . $key . '}';
     }
 }
 

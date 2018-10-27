@@ -2,14 +2,14 @@
 
 namespace AEngine\Orchid;
 
-use Closure;
-use AEngine\Orchid\Interfaces\RouteInterface;
 use AEngine\Orchid\Exception\NoSuchMethodException;
+use AEngine\Orchid\Interfaces\RouteInterface;
 use AEngine\Orchid\Message\Body;
+use Closure;
+use InvalidArgumentException;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Throwable;
-use InvalidArgumentException;
 use UnexpectedValueException;
 
 class Route implements RouteInterface
@@ -76,20 +76,20 @@ class Route implements RouteInterface
     /**
      * Create new route
      *
-     * @param string|string[] $methods The route HTTP methods
-     * @param string          $pattern The route pattern
-     * @param array|Closure   $callable The route callable
-     * @param int             $priority The route priority
-     * @param RouteGroup[]    $groups The parent route groups
+     * @param string|string[] $methods    The route HTTP methods
+     * @param string          $pattern    The route pattern
+     * @param array|Closure   $callable   The route callable
+     * @param int             $priority   The route priority
+     * @param RouteGroup[]    $groups     The parent route groups
      * @param int             $identifier The route identifier
      */
     public function __construct($methods, $pattern, $callable, $priority = 0, $groups = [], $identifier = 0)
     {
-        $this->methods    = is_string($methods) ? [$methods] : $methods;
-        $this->pattern    = $pattern;
-        $this->callable   = $callable;
-        $this->groups     = $groups;
-        $this->priority   = $priority;
+        $this->methods = is_string($methods) ? [$methods] : $methods;
+        $this->pattern = $pattern;
+        $this->callable = $callable;
+        $this->groups = $groups;
+        $this->priority = $priority;
         $this->identifier = 'route' . $identifier;
     }
 
@@ -193,27 +193,6 @@ class Route implements RouteInterface
     }
 
     /**
-     * Retrieve a specific route argument
-     *
-     * @param string $name
-     * @param mixed  $default
-     *
-     * @return mixed
-     */
-    public function getArgument($name = '', $default = null)
-    {
-        if ($name) {
-            if (array_key_exists($name, $this->arguments)) {
-                return $this->arguments[$name];
-            }
-
-            return $default;
-        }
-
-        return $this->arguments;
-    }
-
-    /**
      * Get output buffering mode
      *
      * @return boolean|string
@@ -245,11 +224,11 @@ class Route implements RouteInterface
      * registered for the route, each callable middleware is invoked in
      * the order specified.
      *
-     * @param ServerRequestInterface $request The current Request object
+     * @param ServerRequestInterface $request  The current Request object
      * @param ResponseInterface      $response The current Response object
      *
      * @return \Psr\Http\Message\ResponseInterface
-     * @throws \Throwable  if the route callable throws an exception
+     * @throws Throwable  if the route callable throws an exception
      */
     public function __invoke(ServerRequestInterface $request, ResponseInterface $response)
     {
@@ -273,10 +252,10 @@ class Route implements RouteInterface
             } else {
                 if (is_array($this->callable)) {
                     $controller = !empty($this->callable[0]) ? $this->callable[0] : '';
-                    $action     = !empty($this->callable[1]) ? $this->callable[1] : 'index';
+                    $action = !empty($this->callable[1]) ? $this->callable[1] : 'index';
                 } else {
                     $controller = $this->callable;
-                    $action     = 'index';
+                    $action = 'index';
                 }
 
                 // controller not found
@@ -333,7 +312,7 @@ class Route implements RouteInterface
                     $body = new Body(fopen('php://temp', 'r+'));
                     $body->write($output . $response->getBody());
                     $response = $response->withBody($body);
-                } elseif ($this->outputBuffering === 'append') {
+                } else if ($this->outputBuffering === 'append') {
                     // append output buffer content
                     $response->getBody()->write($output);
                 }
@@ -344,5 +323,26 @@ class Route implements RouteInterface
         }
 
         return $response;
+    }
+
+    /**
+     * Retrieve a specific route argument
+     *
+     * @param string $name
+     * @param mixed  $default
+     *
+     * @return mixed
+     */
+    public function getArgument($name = '', $default = null)
+    {
+        if ($name) {
+            if (array_key_exists($name, $this->arguments)) {
+                return $this->arguments[$name];
+            }
+
+            return $default;
+        }
+
+        return $this->arguments;
     }
 }

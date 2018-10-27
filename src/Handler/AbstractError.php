@@ -20,7 +20,8 @@ abstract class AbstractError
      * Read the accept header and determine which content type we know about
      * is wanted.
      *
-     * @param  string $acceptHeader Accept header from request
+     * @param string $acceptHeader Accept header from request
+     *
      * @return string
      */
     protected static function determineContentType($acceptHeader)

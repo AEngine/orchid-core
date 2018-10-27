@@ -2,7 +2,6 @@
 
 namespace AEngine\Orchid\Handler;
 
-use AEngine\Orchid\App;
 use AEngine\Orchid\Http\Body;
 use AEngine\Orchid\Http\Response;
 use Throwable;
@@ -24,8 +23,8 @@ class RenderError extends AbstractError
                 $output = static::renderJsonMessage($error);
                 break;
 
-             case 'text/html':
-                 $output = static::renderHtmlMessage($error);
+            case 'text/html':
+                $output = static::renderHtmlMessage($error);
                 break;
 
             default:
@@ -44,11 +43,12 @@ class RenderError extends AbstractError
     /**
      * Render JSON error
      *
-     * @param \Throwable $error
+     * @param Throwable $error
      *
      * @return string
      */
-    protected static function renderJsonMessage(Throwable $error){
+    protected static function renderJsonMessage(Throwable $error)
+    {
         $json = [
             'message' => 'Application Error',
         ];
@@ -74,11 +74,12 @@ class RenderError extends AbstractError
     /**
      * Render HTML error page
      *
-     * @param \Throwable $error
+     * @param Throwable $error
      *
      * @return string
      */
-    protected static function renderHtmlMessage(Throwable $error){
+    protected static function renderHtmlMessage(Throwable $error)
+    {
         $title = 'Application Error';
 
         if (app()->isDebug()) {
@@ -110,11 +111,12 @@ class RenderError extends AbstractError
     /**
      * Render error as HTML.
      *
-     * @param \Throwable $error
+     * @param Throwable $error
      *
      * @return string
      */
-    protected static function renderHtmlError(Throwable $error) {
+    protected static function renderHtmlError(Throwable $error)
+    {
         $html = sprintf('<div><strong>Type:</strong> %s</div>', get_class($error));
 
         if (($code = $error->getCode())) {

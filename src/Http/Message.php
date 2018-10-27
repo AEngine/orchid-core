@@ -3,9 +3,9 @@
 namespace AEngine\Orchid\Http;
 
 use AEngine\Orchid\Interfaces\HeadersInterface;
+use InvalidArgumentException;
 use Psr\Http\Message\MessageInterface;
 use Psr\Http\Message\StreamInterface;
-use InvalidArgumentException;
 
 /**
  * Abstract message (base class for Request and Response)
@@ -20,13 +20,6 @@ use InvalidArgumentException;
 abstract class Message implements MessageInterface
 {
     /**
-     * Protocol version
-     *
-     * @var string
-     */
-    protected $protocolVersion = '1.1';
-
-    /**
      * A map of valid protocol versions
      *
      * @var array
@@ -36,7 +29,12 @@ abstract class Message implements MessageInterface
         '1.1' => true,
         '2.0' => true,
     ];
-
+    /**
+     * Protocol version
+     *
+     * @var string
+     */
+    protected $protocolVersion = '1.1';
     /**
      * Headers
      *

@@ -2,11 +2,13 @@
 
 namespace AEngine\Orchid;
 
-use stdClass;
-use JsonSerializable;
 use AEngine\Orchid\Support\Arr;
 use AEngine\Orchid\Traits\Macroable;
+use Closure;
 use Exception;
+use InvalidArgumentException;
+use JsonSerializable;
+use stdClass;
 use Traversable;
 
 /**
@@ -35,6 +37,17 @@ use Traversable;
 class Collection extends CollectionBase
 {
     use Macroable;
+
+    /**
+     * The methods that can be proxied.
+     *
+     * @var array
+     */
+    protected static $proxies = [
+        'average', 'avg', 'contains', 'each', 'every', 'filter', 'first',
+        'flatMap', 'groupBy', 'keyBy', 'map', 'max', 'min', 'partition',
+        'reject', 'sortBy', 'sortByDesc', 'sum', 'unique',
+    ];
 
     /**
      * Create a new collection instance if the value isn't one already.
@@ -101,37 +114,36 @@ class Collection extends CollectionBase
     }
 
     /**
-     * Get the average value of a given key.
+     * Run a map over each of the items.
      *
-     * @param  callable|string|null $callback
+     * @param callable $callback
      *
-     * @return mixed
+     * @return static
      */
-    public function avg($callback = null)
+    public function map(callable $callback)
     {
-        $callback = $this->valueRetriever($callback);
+        $keys = array_keys($this->items);
+        $items = array_map($callback, $this->items, $keys);
 
-        $items = $this->map(
-            function ($value) use ($callback) {
-                return $callback($value);
-            }
-        )->filter(
-            function ($value) {
-                return !is_null($value);
-            }
-        );
+        return new static(array_combine($keys, $items));
+    }
 
-        if ($count = $items->count()) {
-            return $items->sum() / $count;
-        }
-
-        return null;
+    /**
+     * Add a method to the list of proxied methods.
+     *
+     * @param string $method
+     *
+     * @return void
+     */
+    public static function proxy($method)
+    {
+        static::$proxies[] = $method;
     }
 
     /**
      * Get the median of a given key.
      *
-     * @param  string|array|null $key
+     * @param string|array|null $key
      *
      * @return mixed
      */
@@ -164,9 +176,170 @@ class Collection extends CollectionBase
     }
 
     /**
+     * Reset the keys on the underlying array.
+     *
+     * @return static
+     */
+    public function values()
+    {
+        return new static(array_values($this->items));
+    }
+
+    /**
+     * Sort through each item with a callback.
+     *
+     * @param callable|null $callback
+     *
+     * @return static
+     */
+    public function sort($callback = null)
+    {
+        $items = $this->items;
+        $callback ? uasort($items, $callback) : asort($items);
+
+        return new static($items);
+    }
+
+    /**
+     * Run a filter over each of the items.
+     *
+     * @param callable|null $callback
+     *
+     * @return static
+     */
+    public function filter(callable $callback = null)
+    {
+        if ($callback) {
+            return new static(Arr::where($this->items, $callback));
+        }
+
+        return new static(array_filter($this->items));
+    }
+
+    /**
+     * Get the values of a given key.
+     *
+     * @param string|array $value
+     * @param string|null  $key
+     *
+     * @return static
+     */
+    public function pluck($value, $key = null)
+    {
+        return new static(Arr::pluck($this->items, $value, $key));
+    }
+
+    /**
+     * Get an item from the collection by key.
+     *
+     * @param mixed $key
+     * @param mixed $default
+     *
+     * @return mixed
+     */
+    public function get($key, $default = null)
+    {
+        if ($this->offsetExists($key)) {
+            return $this->items[$key];
+        }
+
+        return value($default);
+    }
+
+    /**
+     * Get the average value of a given key.
+     *
+     * @param callable|string|null $callback
+     *
+     * @return mixed
+     */
+    public function avg($callback = null)
+    {
+        $callback = $this->valueRetriever($callback);
+
+        $items = $this->map(
+            function ($value) use ($callback) {
+                return $callback($value);
+            }
+        )->filter(
+            function ($value) {
+                return !is_null($value);
+            }
+        );
+
+        if ($count = $items->count()) {
+            return $items->sum() / $count;
+        }
+
+        return null;
+    }
+
+    /**
+     * Get a value retrieving callback.
+     *
+     * @param string $value
+     *
+     * @return callable
+     */
+    protected function valueRetriever($value)
+    {
+        if ($this->useAsCallable($value)) {
+            return $value;
+        }
+
+        return function ($item) use ($value) {
+            return data_get($item, $value);
+        };
+    }
+
+    /**
+     * Determine if the given value is callable, but not a string.
+     *
+     * @param mixed $value
+     *
+     * @return bool
+     */
+    protected function useAsCallable($value)
+    {
+        return !is_string($value) && is_callable($value);
+    }
+
+    /**
+     * Get the sum of the given values.
+     *
+     * @param callable|string|null $callback
+     *
+     * @return mixed
+     */
+    public function sum($callback = null)
+    {
+        if (is_null($callback)) {
+            return array_sum($this->items);
+        }
+        $callback = $this->valueRetriever($callback);
+
+        return $this->reduce(function ($result, $item) use ($callback) {
+            return $result + $callback($item);
+        }, 0);
+    }
+
+    /**
+     * Reduce the collection to a single value.
+     *
+     * @param callable $callback
+     * @param mixed    $initial
+     *
+     * @return mixed
+     */
+    public function reduce(callable $callback, $initial = null)
+    {
+        return array_reduce($this->items, $callback, $initial);
+    }
+
+    /**
      * Get the mode of a given key.
      *
-     * @param  string|array|null $key
+     * @param string|array|null $key
      *
      * @return array|null
      */
@@ -191,13 +364,67 @@ class Collection extends CollectionBase
     }
 
     /**
-     * Collapse the collection of items into a single array.
+     * Execute a callback over each item.
+     *
+     * @param callable $callback
+     *
+     * @return $this
+     */
+    public function each(callable $callback)
+    {
+        foreach ($this->items as $key => $item) {
+            if ($callback($item, $key) === false) {
+                break;
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * Get the last item from the collection.
+     *
+     * @param callable|null $callback
+     * @param mixed         $default
+     *
+     * @return mixed
+     */
+    public function last(callable $callback = null, $default = null)
+    {
+        return Arr::last($this->items, $callback, $default);
+    }
+
+    /**
+     * Get the keys of the collection items.
      *
      * @return static
      */
-    public function collapse()
+    public function keys()
     {
-        return new static(Arr::collapse($this->items));
+        return new static(array_keys($this->items));
+    }
+
+    /**
+     * Determine if an item exists in the collection using strict comparison.
+     *
+     * @param mixed $key
+     * @param mixed $value
+     *
+     * @return bool
+     */
+    public function containsStrict($key, $value = null)
+    {
+        if (func_num_args() === 2) {
+            return $this->contains(function ($item) use ($key, $value) {
+                return data_get($item, $key) === $value;
+            });
+        }
+
+        if ($this->useAsCallable($key)) {
+            return !is_null($this->first($key));
+        }
+
+        return in_array($key, $this->items, true);
     }
 
     /**
@@ -225,26 +452,70 @@ class Collection extends CollectionBase
     }
 
     /**
-     * Determine if an item exists in the collection using strict comparison.
+     * Get the first item from the collection.
      *
-     * @param mixed $key
-     * @param mixed $value
+     * @param callable|null $callback
+     * @param mixed         $default
      *
-     * @return bool
+     * @return mixed
      */
-    public function containsStrict($key, $value = null)
+    public function first(callable $callback = null, $default = null)
     {
+        return Arr::first($this->items, $callback, $default);
+    }
+
+    /**
+     * Get an operator checker callback.
+     *
+     * @param string $key
+     * @param string $operator
+     * @param mixed  $value
+     *
+     * @return Closure
+     */
+    protected function operatorForWhere($key, $operator = null, $value = null)
+    {
+        if (func_num_args() === 1) {
+            $value = true;
+            $operator = '=';
+        }
         if (func_num_args() === 2) {
-            return $this->contains(function ($item) use ($key, $value) {
-                return data_get($item, $key) === $value;
+            $value = $operator;
+            $operator = '=';
+        }
+
+        return function ($item) use ($key, $operator, $value) {
+            $retrieved = data_get($item, $key);
+            $strings = array_filter([$retrieved, $value], function ($value) {
+                return is_string($value) || (is_object($value) && method_exists($value, '__toString'));
             });
-        }
 
-        if ($this->useAsCallable($key)) {
-            return !is_null($this->first($key));
-        }
+            if (count($strings) < 2 && count(array_filter([$retrieved, $value], 'is_object')) == 1) {
+                return in_array($operator, ['!=', '<>', '!==']);
+            }
 
-        return in_array($key, $this->items, true);
+            switch ($operator) {
+                default:
+                case '=':
+                case '==':
+                    return $retrieved == $value;
+                case '!=':
+                case '<>':
+                    return $retrieved != $value;
+                case '<':
+                    return $retrieved < $value;
+                case '>':
+                    return $retrieved > $value;
+                case '<=':
+                    return $retrieved <= $value;
+                case '>=':
+                    return $retrieved >= $value;
+                case '===':
+                    return $retrieved === $value;
+                case '!==':
+                    return $retrieved !== $value;
+            }
+        };
     }
 
     /**
@@ -337,24 +608,6 @@ class Collection extends CollectionBase
     }
 
     /**
-     * Execute a callback over each item.
-     *
-     * @param callable $callback
-     *
-     * @return $this
-     */
-    public function each(callable $callback)
-    {
-        foreach ($this->items as $key => $item) {
-            if ($callback($item, $key) === false) {
-                break;
-            }
-        }
-
-        return $this;
-    }
-
-    /**
      * Execute a callback over each nested chunk of items.
      *
      * @param callable $callback
@@ -415,19 +668,16 @@ class Collection extends CollectionBase
     }
 
     /**
-     * Run a filter over each of the items.
+     * Filter items by the given key value pair using strict comparison.
      *
-     * @param callable|null $callback
+     * @param string $key
+     * @param mixed  $value
      *
      * @return static
      */
-    public function filter(callable $callback = null)
+    public function whereStrict($key, $value)
     {
-        if ($callback) {
-            return new static(Arr::where($this->items, $callback));
-        }
-
-        return new static(array_filter($this->items));
+        return $this->where($key, '===', $value);
     }
 
     /**
@@ -445,70 +695,16 @@ class Collection extends CollectionBase
     }
 
     /**
-     * Get an operator checker callback.
-     *
-     * @param string $key
-     * @param string $operator
-     * @param mixed  $value
-     *
-     * @return \Closure
-     */
-    protected function operatorForWhere($key, $operator = null, $value = null)
-    {
-        if (func_num_args() === 1) {
-            $value = true;
-            $operator = '=';
-        }
-        if (func_num_args() === 2) {
-            $value = $operator;
-            $operator = '=';
-        }
-
-        return function ($item) use ($key, $operator, $value) {
-            $retrieved = data_get($item, $key);
-            $strings = array_filter([$retrieved, $value], function ($value) {
-                return is_string($value) || (is_object($value) && method_exists($value, '__toString'));
-            });
-
-            if (count($strings) < 2 && count(array_filter([$retrieved, $value], 'is_object')) == 1) {
-                return in_array($operator, ['!=', '<>', '!==']);
-            }
-
-            switch ($operator) {
-                default:
-                case '=':
-                case '==':
-                    return $retrieved == $value;
-                case '!=':
-                case '<>':
-                    return $retrieved != $value;
-                case '<':
-                    return $retrieved < $value;
-                case '>':
-                    return $retrieved > $value;
-                case '<=':
-                    return $retrieved <= $value;
-                case '>=':
-                    return $retrieved >= $value;
-                case '===':
-                    return $retrieved === $value;
-                case '!==':
-                    return $retrieved !== $value;
-            }
-        };
-    }
-
-    /**
      * Filter items by the given key value pair using strict comparison.
      *
      * @param string $key
-     * @param mixed  $value
+     * @param mixed  $values
      *
      * @return static
      */
-    public function whereStrict($key, $value)
+    public function whereInStrict($key, $values)
     {
-        return $this->where($key, '===', $value);
+        return $this->whereIn($key, $values, true);
     }
 
     /**
@@ -537,9 +733,9 @@ class Collection extends CollectionBase
      *
      * @return static
      */
-    public function whereInStrict($key, $values)
+    public function whereNotInStrict($key, $values)
     {
-        return $this->whereIn($key, $values, true);
+        return $this->whereNotIn($key, $values, true);
     }
 
     /**
@@ -561,16 +757,23 @@ class Collection extends CollectionBase
     }
 
     /**
-     * Filter items by the given key value pair using strict comparison.
+     * Create a collection of all elements that do not pass a given truth test.
      *
-     * @param string $key
-     * @param mixed  $values
+     * @param callable|mixed $callback
      *
      * @return static
      */
-    public function whereNotInStrict($key, $values)
+    public function reject($callback)
     {
-        return $this->whereNotIn($key, $values, true);
+        if ($this->useAsCallable($callback)) {
+            return $this->filter(function ($value, $key) use ($callback) {
+                return !$callback($value, $key);
+            });
+        }
+
+        return $this->filter(function ($item) use ($callback) {
+            return $item != $callback;
+        });
     }
 
     /**
@@ -585,6 +788,20 @@ class Collection extends CollectionBase
         return $this->filter(function ($value) use ($type) {
             return $value instanceof $type;
         });
+    }
+
+    /**
+     * Apply the callback if the value is falsy.
+     *
+     * @param bool     $value
+     * @param callable $callback
+     * @param callable $default
+     *
+     * @return static|mixed
+     */
+    public function unless($value, callable $callback, callable $default = null)
+    {
+        return $this->when(!$value, $callback, $default);
     }
 
     /**
@@ -605,33 +822,6 @@ class Collection extends CollectionBase
         }
 
         return $this;
-    }
-
-    /**
-     * Apply the callback if the value is falsy.
-     *
-     * @param bool     $value
-     * @param callable $callback
-     * @param callable $default
-     *
-     * @return static|mixed
-     */
-    public function unless($value, callable $callback, callable $default = null)
-    {
-        return $this->when(!$value, $callback, $default);
-    }
-
-    /**
-     * Get the first item from the collection.
-     *
-     * @param callable|null $callback
-     * @param mixed         $default
-     *
-     * @return mixed
-     */
-    public function first(callable $callback = null, $default = null)
-    {
-        return Arr::first($this->items, $callback, $default);
     }
 
     /**
@@ -684,23 +874,6 @@ class Collection extends CollectionBase
         }
 
         return $this;
-    }
-
-    /**
-     * Get an item from the collection by key.
-     *
-     * @param mixed $key
-     * @param mixed $default
-     *
-     * @return mixed
-     */
-    public function get($key, $default = null)
-    {
-        if ($this->offsetExists($key)) {
-            return $this->items[$key];
-        }
-
-        return value($default);
     }
 
     /**
@@ -828,16 +1001,6 @@ class Collection extends CollectionBase
     }
 
     /**
-     * Determine if the collection is empty or not.
-     *
-     * @return bool
-     */
-    public function isEmpty()
-    {
-        return empty($this->items);
-    }
-
-    /**
      * Determine if the collection is not empty.
      *
      * @return bool
@@ -848,64 +1011,13 @@ class Collection extends CollectionBase
     }
 
     /**
-     * Get the keys of the collection items.
+     * Determine if the collection is empty or not.
      *
-     * @return static
+     * @return bool
      */
-    public function keys()
+    public function isEmpty()
     {
-        return new static(array_keys($this->items));
-    }
-
-    /**
-     * Reset the keys on the underlying array.
-     *
-     * @return static
-     */
-    public function values()
-    {
-        return new static(array_values($this->items));
-    }
-
-    /**
-     * Get the last item from the collection.
-     *
-     * @param callable|null $callback
-     * @param mixed         $default
-     *
-     * @return mixed
-     */
-    public function last(callable $callback = null, $default = null)
-    {
-        return Arr::last($this->items, $callback, $default);
-    }
-
-    /**
-     * Get the values of a given key.
-     *
-     * @param string|array $value
-     * @param string|null  $key
-     *
-     * @return static
-     */
-    public function pluck($value, $key = null)
-    {
-        return new static(Arr::pluck($this->items, $value, $key));
-    }
-
-    /**
-     * Run a map over each of the items.
-     *
-     * @param callable $callback
-     *
-     * @return static
-     */
-    public function map(callable $callback)
-    {
-        $keys = array_keys($this->items);
-        $items = array_map($callback, $this->items, $keys);
-
-        return new static(array_combine($keys, $items));
+        return empty($this->items);
     }
 
     /**
@@ -922,6 +1034,22 @@ class Collection extends CollectionBase
 
             return $callback(...$chunk);
         });
+    }
+
+    /**
+     * Run a grouping map over the items.
+     *
+     * The callback should return an associative array with a single key/value pair.
+     *
+     * @param callable $callback
+     *
+     * @return static
+     */
+    public function mapToGroups(callable $callback)
+    {
+        $groups = $this->mapToDictionary($callback);
+
+        return $groups->map([$this, 'make']);
     }
 
     /**
@@ -947,22 +1075,6 @@ class Collection extends CollectionBase
         }
 
         return new static($dictionary);
-    }
-
-    /**
-     * Run a grouping map over the items.
-     *
-     * The callback should return an associative array with a single key/value pair.
-     *
-     * @param callable $callback
-     *
-     * @return static
-     */
-    public function mapToGroups(callable $callback)
-    {
-        $groups = $this->mapToDictionary($callback);
-
-        return $groups->map([$this, 'make']);
     }
 
     /**
@@ -997,6 +1109,16 @@ class Collection extends CollectionBase
     public function flatMap(callable $callback)
     {
         return $this->map($callback)->collapse();
+    }
+
+    /**
+     * Collapse the collection of items into a single array.
+     *
+     * @return static
+     */
+    public function collapse()
+    {
+        return new static(Arr::collapse($this->items));
     }
 
     /**
@@ -1075,7 +1197,6 @@ class Collection extends CollectionBase
         return new static($new);
     }
 
-
     /**
      * Merge the collection with the given items.
      *
@@ -1148,6 +1269,19 @@ class Collection extends CollectionBase
     }
 
     /**
+     * Slice the underlying collection array.
+     *
+     * @param int $offset
+     * @param int $length
+     *
+     * @return static
+     */
+    public function slice($offset, $length = null)
+    {
+        return new static(array_slice($this->items, $offset, $length, true));
+    }
+
+    /**
      * Partition the collection into two arrays using the given callback or key.
      *
      * @param callable|string $key
@@ -1207,20 +1341,6 @@ class Collection extends CollectionBase
     }
 
     /**
-     * Push an item onto the end of the collection.
-     *
-     * @param mixed $value
-     *
-     * @return $this
-     */
-    public function push($value)
-    {
-        $this->offsetSet(null, $value);
-
-        return $this;
-    }
-
-    /**
      * Push all of the given items onto the collection.
      *
      * @param Traversable|array $source
@@ -1236,6 +1356,20 @@ class Collection extends CollectionBase
         }
 
         return $result;
+    }
+
+    /**
+     * Push an item onto the end of the collection.
+     *
+     * @param mixed $value
+     *
+     * @return $this
+     */
+    public function push($value)
+    {
+        $this->offsetSet(null, $value);
+
+        return $this;
     }
 
     /**
@@ -1273,7 +1407,7 @@ class Collection extends CollectionBase
      *
      * @return static|mixed
      *
-     * @throws \InvalidArgumentException
+     * @throws InvalidArgumentException
      */
     public function random($number = null)
     {
@@ -1282,39 +1416,6 @@ class Collection extends CollectionBase
         }
 
         return new static(Arr::random($this->items, $number));
-    }
-
-    /**
-     * Reduce the collection to a single value.
-     *
-     * @param callable $callback
-     * @param mixed    $initial
-     *
-     * @return mixed
-     */
-    public function reduce(callable $callback, $initial = null)
-    {
-        return array_reduce($this->items, $callback, $initial);
-    }
-
-    /**
-     * Create a collection of all elements that do not pass a given truth test.
-     *
-     * @param callable|mixed $callback
-     *
-     * @return static
-     */
-    public function reject($callback)
-    {
-        if ($this->useAsCallable($callback)) {
-            return $this->filter(function ($value, $key) use ($callback) {
-                return !$callback($value, $key);
-            });
-        }
-
-        return $this->filter(function ($item) use ($callback) {
-            return $item != $callback;
-        });
     }
 
     /**
@@ -1372,19 +1473,6 @@ class Collection extends CollectionBase
     }
 
     /**
-     * Slice the underlying collection array.
-     *
-     * @param int $offset
-     * @param int $length
-     *
-     * @return static
-     */
-    public function slice($offset, $length = null)
-    {
-        return new static(array_slice($this->items, $offset, $length, true));
-    }
-
-    /**
      * Split a collection into a certain number of groups.
      *
      * @param int $numberOfGroups
@@ -1435,18 +1523,16 @@ class Collection extends CollectionBase
     }
 
     /**
-     * Sort through each item with a callback.
+     * Sort the collection in descending order using the given callback.
      *
-     * @param callable|null $callback
+     * @param callable|string $callback
+     * @param int             $options
      *
      * @return static
      */
-    public function sort($callback = null)
+    public function sortByDesc($callback, $options = SORT_REGULAR)
     {
-        $items = $this->items;
-        $callback ? uasort($items, $callback) : asort($items);
-
-        return new static($items);
+        return $this->sortBy($callback, $options, true);
     }
 
     /**
@@ -1482,16 +1568,15 @@ class Collection extends CollectionBase
     }
 
     /**
-     * Sort the collection in descending order using the given callback.
+     * Sort the collection keys in descending order.
      *
-     * @param callable|string $callback
-     * @param int             $options
+     * @param int $options
      *
      * @return static
      */
-    public function sortByDesc($callback, $options = SORT_REGULAR)
+    public function sortKeysDesc($options = SORT_REGULAR)
     {
-        return $this->sortBy($callback, $options, true);
+        return $this->sortKeys($options, true);
     }
 
     /**
@@ -1511,18 +1596,6 @@ class Collection extends CollectionBase
     }
 
     /**
-     * Sort the collection keys in descending order.
-     *
-     * @param int $options
-     *
-     * @return static
-     */
-    public function sortKeysDesc($options = SORT_REGULAR)
-    {
-        return $this->sortKeys($options, true);
-    }
-
-    /**
      * Splice a portion of the underlying collection array.
      *
      * @param int      $offset
@@ -1538,25 +1611,6 @@ class Collection extends CollectionBase
         }
 
         return new static(array_splice($this->items, $offset, $length, $replacement));
-    }
-
-    /**
-     * Get the sum of the given values.
-     *
-     * @param callable|string|null $callback
-     *
-     * @return mixed
-     */
-    public function sum($callback = null)
-    {
-        if (is_null($callback)) {
-            return array_sum($this->items);
-        }
-        $callback = $this->valueRetriever($callback);
-
-        return $this->reduce(function ($result, $item) use ($callback) {
-            return $result + $callback($item);
-        }, 0);
     }
 
     /**
@@ -1604,6 +1658,18 @@ class Collection extends CollectionBase
     }
 
     /**
+     * Return only unique items from the collection array using strict comparison.
+     *
+     * @param string|callable|null $key
+     *
+     * @return static
+     */
+    public function uniqueStrict($key = null)
+    {
+        return $this->unique($key, true);
+    }
+
+    /**
      * Return only unique items from the collection array.
      *
      * @param string|callable|null $key
@@ -1625,18 +1691,6 @@ class Collection extends CollectionBase
     }
 
     /**
-     * Return only unique items from the collection array using strict comparison.
-     *
-     * @param string|callable|null $key
-     *
-     * @return static
-     */
-    public function uniqueStrict($key = null)
-    {
-        return $this->unique($key, true);
-    }
-
-    /**
      * Get the collection of items as a plain array.
      *
      * @return array
@@ -1649,34 +1703,6 @@ class Collection extends CollectionBase
             },
             $this->items
         );
-    }
-
-    /**
-     * Convert the object into something JSON serializable.
-     *
-     * @return array
-     */
-    public function jsonSerialize()
-    {
-        return array_map(function ($value) {
-            if ($value instanceof JsonSerializable) {
-                return $value->jsonSerialize();
-            }
-
-            return $value;
-        }, $this->items);
-    }
-
-    /**
-     * Get the collection of items as JSON.
-     *
-     * @param int $options
-     *
-     * @return string
-     */
-    public function toJson($options = JSON_UNESCAPED_UNICODE)
-    {
-        return json_encode($this->jsonSerialize(), $options);
     }
 
     /**
@@ -1724,59 +1750,6 @@ class Collection extends CollectionBase
     }
 
     /**
-     * Get a value retrieving callback.
-     *
-     * @param string $value
-     *
-     * @return callable
-     */
-    protected function valueRetriever($value)
-    {
-        if ($this->useAsCallable($value)) {
-            return $value;
-        }
-
-        return function ($item) use ($value) {
-            return data_get($item, $value);
-        };
-    }
-
-    /**
-     * Determine if the given value is callable, but not a string.
-     *
-     * @param mixed $value
-     *
-     * @return bool
-     */
-    protected function useAsCallable($value)
-    {
-        return !is_string($value) && is_callable($value);
-    }
-
-    /**
-     * The methods that can be proxied.
-     *
-     * @var array
-     */
-    protected static $proxies = [
-        'average', 'avg', 'contains', 'each', 'every', 'filter', 'first',
-        'flatMap', 'groupBy', 'keyBy', 'map', 'max', 'min', 'partition',
-        'reject', 'sortBy', 'sortByDesc', 'sum', 'unique',
-    ];
-
-    /**
-     * Add a method to the list of proxied methods.
-     *
-     * @param string $method
-     *
-     * @return void
-     */
-    public static function proxy($method)
-    {
-        static::$proxies[] = $method;
-    }
-
-    /**
      * Dynamically access collection proxies.
      *
      * @param string $key
@@ -1802,5 +1775,33 @@ class Collection extends CollectionBase
     public function __toString()
     {
         return $this->toJson();
+    }
+
+    /**
+     * Get the collection of items as JSON.
+     *
+     * @param int $options
+     *
+     * @return string
+     */
+    public function toJson($options = JSON_UNESCAPED_UNICODE)
+    {
+        return json_encode($this->jsonSerialize(), $options);
+    }
+
+    /**
+     * Convert the object into something JSON serializable.
+     *
+     * @return array
+     */
+    public function jsonSerialize()
+    {
+        return array_map(function ($value) {
+            if ($value instanceof JsonSerializable) {
+                return $value->jsonSerialize();
+            }
+
+            return $value;
+        }, $this->items);
     }
 }

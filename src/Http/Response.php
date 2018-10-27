@@ -3,10 +3,10 @@
 namespace AEngine\Orchid\Http;
 
 use AEngine\Orchid\Interfaces\HeadersInterface;
+use InvalidArgumentException;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamInterface;
 use Psr\Http\Message\UriInterface;
-use InvalidArgumentException;
 
 /**
  * Response
@@ -21,19 +21,11 @@ use InvalidArgumentException;
 class Response extends Message implements ResponseInterface
 {
     /**
-     * Status code
-     *
-     * @var int
-     */
-    protected $status = 200;
-
-    /**
-     * Reason phrase
+     * EOL characters used for HTTP response.
      *
      * @var string
      */
-    protected $reasonPhrase = '';
-
+    const EOL = "\r\n";
     /**
      * Status codes and reason phrases
      *
@@ -110,13 +102,18 @@ class Response extends Message implements ResponseInterface
         511 => 'Network Authentication Required',
         599 => 'Network Connect Timeout Error',
     ];
-
     /**
-     * EOL characters used for HTTP response.
+     * Status code
+     *
+     * @var int
+     */
+    protected $status = 200;
+    /**
+     * Reason phrase
      *
      * @var string
      */
-    const EOL = "\r\n";
+    protected $reasonPhrase = '';
 
     /**
      * Create new HTTP response.
@@ -133,6 +130,23 @@ class Response extends Message implements ResponseInterface
     }
 
     /**
+     * Filter HTTP status code.
+     *
+     * @param int $status HTTP status code.
+     *
+     * @return int
+     * @throws InvalidArgumentException If an invalid HTTP status code is provided.
+     */
+    protected function filterStatus($status)
+    {
+        if (!is_integer($status) || $status < 100 || $status > 599) {
+            throw new InvalidArgumentException('Invalid HTTP status code');
+        }
+
+        return $status;
+    }
+
+    /**
      * This method is applied to the cloned object
      * after PHP performs an initial shallow-copy. This
      * method completes a deep-copy by creating new objects
@@ -141,6 +155,52 @@ class Response extends Message implements ResponseInterface
     public function __clone()
     {
         $this->headers = clone $this->headers;
+    }
+
+    /**
+     * Write data to the response body.
+     *
+     * Note: This method is not part of the PSR-7 standard.
+     *
+     * Proxies to the underlying stream and writes the provided data to it.
+     *
+     * @param string $data
+     *
+     * @return $this
+     */
+    public function write($data)
+    {
+        $this->getBody()->write($data);
+
+        return $this;
+    }
+
+    /**
+     * Redirect.
+     *
+     * Note: This method is not part of the PSR-7 standard.
+     *
+     * This method prepares the response object to return an HTTP Redirect
+     * response to the client.
+     *
+     * @param string|UriInterface $url    The redirect destination.
+     * @param int|null            $status The redirect HTTP status code.
+     *
+     * @return static
+     */
+    public function withRedirect($url, $status = null)
+    {
+        $responseWithRedirect = $this->withHeader('Location', (string)$url);
+
+        if (is_null($status) && $this->getStatusCode() === 200) {
+            $status = 302;
+        }
+
+        if (!is_null($status)) {
+            return $responseWithRedirect->withStatus($status);
+        }
+
+        return $responseWithRedirect;
     }
 
     /**
@@ -202,95 +262,6 @@ class Response extends Message implements ResponseInterface
     }
 
     /**
-     * Filter HTTP status code.
-     *
-     * @param  int $status HTTP status code.
-     *
-     * @return int
-     * @throws InvalidArgumentException If an invalid HTTP status code is provided.
-     */
-    protected function filterStatus($status)
-    {
-        if (!is_integer($status) || $status < 100 || $status > 599) {
-            throw new InvalidArgumentException('Invalid HTTP status code');
-        }
-
-        return $status;
-    }
-
-    /**
-     * Gets the response reason phrase associated with the status code.
-     *
-     * Because a reason phrase is not a required element in a response
-     * status line, the reason phrase value MAY be null. Implementations MAY
-     * choose to return the default RFC 7231 recommended reason phrase (or those
-     * listed in the IANA HTTP Status Code Registry) for the response's
-     * status code.
-     *
-     * @link http://tools.ietf.org/html/rfc7231#section-6
-     * @link http://www.iana.org/assignments/http-status-codes/http-status-codes.xhtml
-     * @return string Reason phrase; must return an empty string if none present.
-     */
-    public function getReasonPhrase()
-    {
-        if ($this->reasonPhrase) {
-            return $this->reasonPhrase;
-        }
-        if (isset(static::$messages[$this->status])) {
-            return static::$messages[$this->status];
-        }
-
-        return '';
-    }
-
-    /**
-     * Write data to the response body.
-     *
-     * Note: This method is not part of the PSR-7 standard.
-     *
-     * Proxies to the underlying stream and writes the provided data to it.
-     *
-     * @param string $data
-     *
-     * @return $this
-     */
-    public function write($data)
-    {
-        $this->getBody()->write($data);
-
-        return $this;
-    }
-
-
-    /**
-     * Redirect.
-     *
-     * Note: This method is not part of the PSR-7 standard.
-     *
-     * This method prepares the response object to return an HTTP Redirect
-     * response to the client.
-     *
-     * @param  string|UriInterface $url    The redirect destination.
-     * @param  int|null            $status The redirect HTTP status code.
-     *
-     * @return static
-     */
-    public function withRedirect($url, $status = null)
-    {
-        $responseWithRedirect = $this->withHeader('Location', (string)$url);
-
-        if (is_null($status) && $this->getStatusCode() === 200) {
-            $status = 302;
-        }
-
-        if (!is_null($status)) {
-            return $responseWithRedirect->withStatus($status);
-        }
-
-        return $responseWithRedirect;
-    }
-
-    /**
      * Json.
      *
      * Note: This method is not part of the PSR-7 standard.
@@ -298,9 +269,9 @@ class Response extends Message implements ResponseInterface
      * This method prepares the response object to return an HTTP Json
      * response to the client.
      *
-     * @param  mixed $data            The data
-     * @param  int   $status          The HTTP status code.
-     * @param  int   $encodingOptions Json encoding options
+     * @param mixed $data            The data
+     * @param int   $status          The HTTP status code.
+     * @param int   $encodingOptions Json encoding options
      *
      * @throws RuntimeException
      * @return static
@@ -467,5 +438,30 @@ class Response extends Message implements ResponseInterface
         $output .= (string)$this->getBody();
 
         return $output;
+    }
+
+    /**
+     * Gets the response reason phrase associated with the status code.
+     *
+     * Because a reason phrase is not a required element in a response
+     * status line, the reason phrase value MAY be null. Implementations MAY
+     * choose to return the default RFC 7231 recommended reason phrase (or those
+     * listed in the IANA HTTP Status Code Registry) for the response's
+     * status code.
+     *
+     * @link http://tools.ietf.org/html/rfc7231#section-6
+     * @link http://www.iana.org/assignments/http-status-codes/http-status-codes.xhtml
+     * @return string Reason phrase; must return an empty string if none present.
+     */
+    public function getReasonPhrase()
+    {
+        if ($this->reasonPhrase) {
+            return $this->reasonPhrase;
+        }
+        if (isset(static::$messages[$this->status])) {
+            return static::$messages[$this->status];
+        }
+
+        return '';
     }
 }

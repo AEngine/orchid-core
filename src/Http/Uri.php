@@ -2,8 +2,8 @@
 
 namespace AEngine\Orchid\Http;
 
-use Psr\Http\Message\UriInterface;
 use InvalidArgumentException;
+use Psr\Http\Message\UriInterface;
 
 /**
  * Value object representing a URI.
@@ -117,9 +117,99 @@ class Uri implements UriInterface
     }
 
     /**
+     * Filter Uri scheme.
+     *
+     * @param string $scheme Raw Uri scheme.
+     *
+     * @return string
+     *
+     * @throws InvalidArgumentException If the Uri scheme is not a string.
+     * @throws InvalidArgumentException If Uri scheme is not "", "https", or "http".
+     */
+    protected function filterScheme($scheme)
+    {
+        static $valid = [
+            '' => true,
+            'https' => true,
+            'http' => true,
+        ];
+
+        if (!is_string($scheme) && !method_exists($scheme, '__toString')) {
+            throw new InvalidArgumentException('Uri scheme must be a string');
+        }
+
+        $scheme = str_replace('://', '', strtolower((string)$scheme));
+        if (!isset($valid[$scheme])) {
+            throw new InvalidArgumentException('Uri scheme must be one of: "", "https", "http"');
+        }
+
+        return $scheme;
+    }
+
+    /**
+     * Filter Uri port.
+     *
+     * @param null|int $port The Uri port number.
+     *
+     * @return null|int
+     *
+     * @throws InvalidArgumentException If the port is invalid.
+     */
+    protected function filterPort($port)
+    {
+        if (is_null($port) || (is_integer($port) && ($port >= 1 && $port <= 65535))) {
+            return $port;
+        }
+
+        throw new InvalidArgumentException('Uri port must be null or an integer between 1 and 65535 (inclusive)');
+    }
+
+    /**
+     * Filter Uri path.
+     *
+     * This method percent-encodes all reserved
+     * characters in the provided path string. This method
+     * will NOT double-encode characters that are already
+     * percent-encoded.
+     *
+     * @param string $path The raw uri path.
+     *
+     * @return string       The RFC 3986 percent-encoded uri path.
+     * @link   http://www.faqs.org/rfcs/rfc3986.html
+     */
+    protected function filterPath($path)
+    {
+        return preg_replace_callback(
+            '/(?:[^a-zA-Z0-9_\-\.~:@&=\+\$,\/;%]+|%(?![A-Fa-f0-9]{2}))/',
+            function ($match) {
+                return rawurlencode($match[0]);
+            },
+            $path
+        );
+    }
+
+    /**
+     * Filters the query string or fragment of a URI.
+     *
+     * @param string $query The raw uri query string.
+     *
+     * @return string The percent-encoded query string.
+     */
+    protected function filterQuery($query)
+    {
+        return preg_replace_callback(
+            '/(?:[^a-zA-Z0-9_\-\.~!\$&\'\(\)\*\+,;=%:@\/\?]+|%(?![A-Fa-f0-9]{2}))/',
+            function ($match) {
+                return rawurlencode($match[0]);
+            },
+            $query
+        );
+    }
+
+    /**
      * Create new Uri from string.
      *
-     * @param  string $uri Complete Uri string
+     * @param string $uri  Complete Uri string
      *                     (i.e., https://user:pass@host:443/path?query).
      *
      * @return self
@@ -205,25 +295,6 @@ class Uri implements UriInterface
     }
 
     /**
-     * Retrieve the scheme component of the URI.
-     *
-     * If no scheme is present, this method MUST return an empty string.
-     *
-     * The value returned MUST be normalized to lowercase, per RFC 3986
-     * Section 3.1.
-     *
-     * The trailing ":" character is not part of the scheme and MUST NOT be
-     * added.
-     *
-     * @see https://tools.ietf.org/html/rfc3986#section-3.1
-     * @return string The URI scheme.
-     */
-    public function getScheme()
-    {
-        return $this->scheme;
-    }
-
-    /**
      * Return an instance with the specified scheme.
      *
      * This method MUST retain the state of the current instance, and return
@@ -246,83 +317,6 @@ class Uri implements UriInterface
         $clone->scheme = $scheme;
 
         return $clone;
-    }
-
-    /**
-     * Filter Uri scheme.
-     *
-     * @param  string $scheme Raw Uri scheme.
-     *
-     * @return string
-     *
-     * @throws InvalidArgumentException If the Uri scheme is not a string.
-     * @throws InvalidArgumentException If Uri scheme is not "", "https", or "http".
-     */
-    protected function filterScheme($scheme)
-    {
-        static $valid = [
-            '' => true,
-            'https' => true,
-            'http' => true,
-        ];
-
-        if (!is_string($scheme) && !method_exists($scheme, '__toString')) {
-            throw new InvalidArgumentException('Uri scheme must be a string');
-        }
-
-        $scheme = str_replace('://', '', strtolower((string)$scheme));
-        if (!isset($valid[$scheme])) {
-            throw new InvalidArgumentException('Uri scheme must be one of: "", "https", "http"');
-        }
-
-        return $scheme;
-    }
-
-    /**
-     * Retrieve the authority component of the URI.
-     *
-     * If no authority information is present, this method MUST return an empty
-     * string.
-     *
-     * The authority syntax of the URI is:
-     *
-     * <pre>
-     * [user-info@]host[:port]
-     * </pre>
-     *
-     * If the port component is not set or is the standard port for the current
-     * scheme, it SHOULD NOT be included.
-     *
-     * @see https://tools.ietf.org/html/rfc3986#section-3.2
-     * @return string The URI authority, in "[user-info@]host[:port]" format.
-     */
-    public function getAuthority()
-    {
-        $userInfo = $this->getUserInfo();
-        $host = $this->getHost();
-        $port = $this->getPort();
-
-        return ($userInfo ? $userInfo . '@' : '') . $host . ($port !== null ? ':' . $port : '');
-    }
-
-    /**
-     * Retrieve the user information component of the URI.
-     *
-     * If no user information is present, this method MUST return an empty
-     * string.
-     *
-     * If a user is present in the URI, this will return that value;
-     * additionally, if the password is also present, it will be appended to the
-     * user value, with a colon (":") separating the values.
-     *
-     * The trailing "@" character is not part of the user information and MUST
-     * NOT be added.
-     *
-     * @return string The URI user information, in "username[:password]" format.
-     */
-    public function getUserInfo()
-    {
-        return $this->user . ($this->password ? ':' . $this->password : '');
     }
 
     /**
@@ -350,22 +344,6 @@ class Uri implements UriInterface
     }
 
     /**
-     * Retrieve the host component of the URI.
-     *
-     * If no host is present, this method MUST return an empty string.
-     *
-     * The value returned MUST be normalized to lowercase, per RFC 3986
-     * Section 3.2.2.
-     *
-     * @see http://tools.ietf.org/html/rfc3986#section-3.2.2
-     * @return string The URI host.
-     */
-    public function getHost()
-    {
-        return $this->host;
-    }
-
-    /**
      * Return an instance with the specified host.
      *
      * This method MUST retain the state of the current instance, and return
@@ -384,26 +362,6 @@ class Uri implements UriInterface
         $clone->host = $host;
 
         return $clone;
-    }
-
-    /**
-     * Retrieve the port component of the URI.
-     *
-     * If a port is present, and it is non-standard for the current scheme,
-     * this method MUST return it as an integer. If the port is the standard port
-     * used with the current scheme, this method SHOULD return null.
-     *
-     * If no port is present, and no scheme is present, this method MUST return
-     * a null value.
-     *
-     * If no port is present, but a scheme is present, this method MAY return
-     * the standard port for that scheme, but SHOULD return null.
-     *
-     * @return null|int The URI port.
-     */
-    public function getPort()
-    {
-        return $this->port && !$this->hasStandardPort() ? $this->port : null;
     }
 
     /**
@@ -431,64 +389,6 @@ class Uri implements UriInterface
         $clone->port = $port;
 
         return $clone;
-    }
-
-    /**
-     * Does this Uri use a standard port?
-     *
-     * @return bool
-     */
-    protected function hasStandardPort()
-    {
-        return ($this->scheme === 'http' && $this->port === 80) || ($this->scheme === 'https' && $this->port === 443);
-    }
-
-    /**
-     * Filter Uri port.
-     *
-     * @param  null|int $port The Uri port number.
-     *
-     * @return null|int
-     *
-     * @throws InvalidArgumentException If the port is invalid.
-     */
-    protected function filterPort($port)
-    {
-        if (is_null($port) || (is_integer($port) && ($port >= 1 && $port <= 65535))) {
-            return $port;
-        }
-
-        throw new InvalidArgumentException('Uri port must be null or an integer between 1 and 65535 (inclusive)');
-    }
-
-    /**
-     * Retrieve the path component of the URI.
-     *
-     * The path can either be empty or absolute (starting with a slash) or
-     * rootless (not starting with a slash). Implementations MUST support all
-     * three syntaxes.
-     *
-     * Normally, the empty path "" and absolute path "/" are considered equal as
-     * defined in RFC 7230 Section 2.7.3. But this method MUST NOT automatically
-     * do this normalization because in contexts with a trimmed base path, e.g.
-     * the front controller, this difference becomes significant. It's the task
-     * of the user to handle both "" and "/".
-     *
-     * The value returned MUST be percent-encoded, but MUST NOT double-encode
-     * any characters. To determine what characters to encode, please refer to
-     * RFC 3986, Sections 2 and 3.3.
-     *
-     * As an example, if the value should include a slash ("/") not intended as
-     * delimiter between path segments, that value MUST be passed in encoded
-     * form (e.g., "%2F") to the instance.
-     *
-     * @see https://tools.ietf.org/html/rfc3986#section-2
-     * @see https://tools.ietf.org/html/rfc3986#section-3.3
-     * @return string The URI path.
-     */
-    public function getPath()
-    {
-        return $this->path;
     }
 
     /**
@@ -527,55 +427,6 @@ class Uri implements UriInterface
     }
 
     /**
-     * Filter Uri path.
-     *
-     * This method percent-encodes all reserved
-     * characters in the provided path string. This method
-     * will NOT double-encode characters that are already
-     * percent-encoded.
-     *
-     * @param  string $path The raw uri path.
-     *
-     * @return string       The RFC 3986 percent-encoded uri path.
-     * @link   http://www.faqs.org/rfcs/rfc3986.html
-     */
-    protected function filterPath($path)
-    {
-        return preg_replace_callback(
-            '/(?:[^a-zA-Z0-9_\-\.~:@&=\+\$,\/;%]+|%(?![A-Fa-f0-9]{2}))/',
-            function ($match) {
-                return rawurlencode($match[0]);
-            },
-            $path
-        );
-    }
-
-    /**
-     * Retrieve the query string of the URI.
-     *
-     * If no query string is present, this method MUST return an empty string.
-     *
-     * The leading "?" character is not part of the query and MUST NOT be
-     * added.
-     *
-     * The value returned MUST be percent-encoded, but MUST NOT double-encode
-     * any characters. To determine what characters to encode, please refer to
-     * RFC 3986, Sections 2 and 3.4.
-     *
-     * As an example, if a value in a key/value pair of the query string should
-     * include an ampersand ("&") not intended as a delimiter between values,
-     * that value MUST be passed in encoded form (e.g., "%26") to the instance.
-     *
-     * @see https://tools.ietf.org/html/rfc3986#section-2
-     * @see https://tools.ietf.org/html/rfc3986#section-3.4
-     * @return string The URI query string.
-     */
-    public function getQuery()
-    {
-        return $this->query;
-    }
-
-    /**
      * Return an instance with the specified query string.
      *
      * This method MUST retain the state of the current instance, and return
@@ -601,45 +452,6 @@ class Uri implements UriInterface
         $clone->query = $this->filterQuery($query);
 
         return $clone;
-    }
-
-    /**
-     * Filters the query string or fragment of a URI.
-     *
-     * @param string $query The raw uri query string.
-     *
-     * @return string The percent-encoded query string.
-     */
-    protected function filterQuery($query)
-    {
-        return preg_replace_callback(
-            '/(?:[^a-zA-Z0-9_\-\.~!\$&\'\(\)\*\+,;=%:@\/\?]+|%(?![A-Fa-f0-9]{2}))/',
-            function ($match) {
-                return rawurlencode($match[0]);
-            },
-            $query
-        );
-    }
-
-    /**
-     * Retrieve the fragment component of the URI.
-     *
-     * If no fragment is present, this method MUST return an empty string.
-     *
-     * The leading "#" character is not part of the fragment and MUST NOT be
-     * added.
-     *
-     * The value returned MUST be percent-encoded, but MUST NOT double-encode
-     * any characters. To determine what characters to encode, please refer to
-     * RFC 3986, Sections 2 and 3.5.
-     *
-     * @see https://tools.ietf.org/html/rfc3986#section-2
-     * @see https://tools.ietf.org/html/rfc3986#section-3.5
-     * @return string The URI fragment.
-     */
-    public function getFragment()
-    {
-        return $this->fragment;
     }
 
     /**
@@ -707,6 +519,194 @@ class Uri implements UriInterface
             . $path
             . ($query ? '?' . $query : '')
             . ($fragment ? '#' . $fragment : '');
+    }
+
+    /**
+     * Retrieve the scheme component of the URI.
+     *
+     * If no scheme is present, this method MUST return an empty string.
+     *
+     * The value returned MUST be normalized to lowercase, per RFC 3986
+     * Section 3.1.
+     *
+     * The trailing ":" character is not part of the scheme and MUST NOT be
+     * added.
+     *
+     * @see https://tools.ietf.org/html/rfc3986#section-3.1
+     * @return string The URI scheme.
+     */
+    public function getScheme()
+    {
+        return $this->scheme;
+    }
+
+    /**
+     * Retrieve the authority component of the URI.
+     *
+     * If no authority information is present, this method MUST return an empty
+     * string.
+     *
+     * The authority syntax of the URI is:
+     *
+     * <pre>
+     * [user-info@]host[:port]
+     * </pre>
+     *
+     * If the port component is not set or is the standard port for the current
+     * scheme, it SHOULD NOT be included.
+     *
+     * @see https://tools.ietf.org/html/rfc3986#section-3.2
+     * @return string The URI authority, in "[user-info@]host[:port]" format.
+     */
+    public function getAuthority()
+    {
+        $userInfo = $this->getUserInfo();
+        $host = $this->getHost();
+        $port = $this->getPort();
+
+        return ($userInfo ? $userInfo . '@' : '') . $host . ($port !== null ? ':' . $port : '');
+    }
+
+    /**
+     * Retrieve the user information component of the URI.
+     *
+     * If no user information is present, this method MUST return an empty
+     * string.
+     *
+     * If a user is present in the URI, this will return that value;
+     * additionally, if the password is also present, it will be appended to the
+     * user value, with a colon (":") separating the values.
+     *
+     * The trailing "@" character is not part of the user information and MUST
+     * NOT be added.
+     *
+     * @return string The URI user information, in "username[:password]" format.
+     */
+    public function getUserInfo()
+    {
+        return $this->user . ($this->password ? ':' . $this->password : '');
+    }
+
+    /**
+     * Retrieve the host component of the URI.
+     *
+     * If no host is present, this method MUST return an empty string.
+     *
+     * The value returned MUST be normalized to lowercase, per RFC 3986
+     * Section 3.2.2.
+     *
+     * @see http://tools.ietf.org/html/rfc3986#section-3.2.2
+     * @return string The URI host.
+     */
+    public function getHost()
+    {
+        return $this->host;
+    }
+
+    /**
+     * Retrieve the port component of the URI.
+     *
+     * If a port is present, and it is non-standard for the current scheme,
+     * this method MUST return it as an integer. If the port is the standard port
+     * used with the current scheme, this method SHOULD return null.
+     *
+     * If no port is present, and no scheme is present, this method MUST return
+     * a null value.
+     *
+     * If no port is present, but a scheme is present, this method MAY return
+     * the standard port for that scheme, but SHOULD return null.
+     *
+     * @return null|int The URI port.
+     */
+    public function getPort()
+    {
+        return $this->port && !$this->hasStandardPort() ? $this->port : null;
+    }
+
+    /**
+     * Does this Uri use a standard port?
+     *
+     * @return bool
+     */
+    protected function hasStandardPort()
+    {
+        return ($this->scheme === 'http' && $this->port === 80) || ($this->scheme === 'https' && $this->port === 443);
+    }
+
+    /**
+     * Retrieve the path component of the URI.
+     *
+     * The path can either be empty or absolute (starting with a slash) or
+     * rootless (not starting with a slash). Implementations MUST support all
+     * three syntaxes.
+     *
+     * Normally, the empty path "" and absolute path "/" are considered equal as
+     * defined in RFC 7230 Section 2.7.3. But this method MUST NOT automatically
+     * do this normalization because in contexts with a trimmed base path, e.g.
+     * the front controller, this difference becomes significant. It's the task
+     * of the user to handle both "" and "/".
+     *
+     * The value returned MUST be percent-encoded, but MUST NOT double-encode
+     * any characters. To determine what characters to encode, please refer to
+     * RFC 3986, Sections 2 and 3.3.
+     *
+     * As an example, if the value should include a slash ("/") not intended as
+     * delimiter between path segments, that value MUST be passed in encoded
+     * form (e.g., "%2F") to the instance.
+     *
+     * @see https://tools.ietf.org/html/rfc3986#section-2
+     * @see https://tools.ietf.org/html/rfc3986#section-3.3
+     * @return string The URI path.
+     */
+    public function getPath()
+    {
+        return $this->path;
+    }
+
+    /**
+     * Retrieve the query string of the URI.
+     *
+     * If no query string is present, this method MUST return an empty string.
+     *
+     * The leading "?" character is not part of the query and MUST NOT be
+     * added.
+     *
+     * The value returned MUST be percent-encoded, but MUST NOT double-encode
+     * any characters. To determine what characters to encode, please refer to
+     * RFC 3986, Sections 2 and 3.4.
+     *
+     * As an example, if a value in a key/value pair of the query string should
+     * include an ampersand ("&") not intended as a delimiter between values,
+     * that value MUST be passed in encoded form (e.g., "%26") to the instance.
+     *
+     * @see https://tools.ietf.org/html/rfc3986#section-2
+     * @see https://tools.ietf.org/html/rfc3986#section-3.4
+     * @return string The URI query string.
+     */
+    public function getQuery()
+    {
+        return $this->query;
+    }
+
+    /**
+     * Retrieve the fragment component of the URI.
+     *
+     * If no fragment is present, this method MUST return an empty string.
+     *
+     * The leading "#" character is not part of the fragment and MUST NOT be
+     * added.
+     *
+     * The value returned MUST be percent-encoded, but MUST NOT double-encode
+     * any characters. To determine what characters to encode, please refer to
+     * RFC 3986, Sections 2 and 3.5.
+     *
+     * @see https://tools.ietf.org/html/rfc3986#section-2
+     * @see https://tools.ietf.org/html/rfc3986#section-3.5
+     * @return string The URI fragment.
+     */
+    public function getFragment()
+    {
+        return $this->fragment;
     }
 
     /**

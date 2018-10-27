@@ -3,11 +3,11 @@
 namespace AEngine\Orchid;
 
 use Closure;
-use SplDoublyLinkedList;
-use SplStack;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use RuntimeException;
+use SplDoublyLinkedList;
+use SplStack;
 use UnexpectedValueException;
 
 trait MiddlewareTrait
@@ -18,23 +18,6 @@ trait MiddlewareTrait
      * @var SplStack
      */
     protected $stack;
-
-    /**
-     * Seed middleware stack with first callable
-     *
-     * @throws RuntimeException if the stack is seeded more than once
-     */
-    protected function seedMiddlewareStack()
-    {
-        if (!is_null($this->stack)) {
-            throw new RuntimeException('MiddlewareStack can only be seeded once.');
-        }
-
-        $this->stack = new SplStack;
-        $this->stack->setIteratorMode(SplDoublyLinkedList::IT_MODE_LIFO | SplDoublyLinkedList::IT_MODE_KEEP);
-        $this->stack[] = $this;
-    }
-
     /**
      * Middleware stack lock
      *
@@ -64,7 +47,7 @@ trait MiddlewareTrait
             $this->seedMiddlewareStack();
         }
 
-        $next          = $this->stack->top();
+        $next = $this->stack->top();
         $this->stack[] = function (ServerRequestInterface $req, ResponseInterface $res) use ($callable, $next) {
             $result = call_user_func($callable, $req, $res, $next);
             if ($result instanceof ResponseInterface === false) {
@@ -80,10 +63,26 @@ trait MiddlewareTrait
     }
 
     /**
+     * Seed middleware stack with first callable
+     *
+     * @throws RuntimeException if the stack is seeded more than once
+     */
+    protected function seedMiddlewareStack()
+    {
+        if (!is_null($this->stack)) {
+            throw new RuntimeException('MiddlewareStack can only be seeded once.');
+        }
+
+        $this->stack = new SplStack;
+        $this->stack->setIteratorMode(SplDoublyLinkedList::IT_MODE_LIFO | SplDoublyLinkedList::IT_MODE_KEEP);
+        $this->stack[] = $this;
+    }
+
+    /**
      * Call middleware stack
      *
-     * @param  ServerRequestInterface $req A request object
-     * @param  ResponseInterface      $res A response object
+     * @param ServerRequestInterface $req A request object
+     * @param ResponseInterface      $res A response object
      *
      * @return ResponseInterface
      */
@@ -96,9 +95,9 @@ trait MiddlewareTrait
         /**
          * @var callable $start
          */
-        $start                = $this->stack->top();
+        $start = $this->stack->top();
         $this->middlewareLock = true;
-        $resp                 = $start($req, $res);
+        $resp = $start($req, $res);
         $this->middlewareLock = false;
 
         return $resp;

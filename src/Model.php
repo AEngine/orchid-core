@@ -21,6 +21,22 @@ abstract class Model implements ModelInterface
     }
 
     /**
+     * Set values for all keys
+     *
+     * @param array $data
+     *
+     * @return $this
+     */
+    public function replace(array $data)
+    {
+        foreach ($data as $key => $value) {
+            $this->$key = $value;
+        }
+
+        return $this;
+    }
+
+    /**
      * Return value for a key
      *
      * @param string $key
@@ -43,22 +59,6 @@ abstract class Model implements ModelInterface
     public function set($key, $value)
     {
         $this->$key = $value;
-
-        return $this;
-    }
-
-    /**
-     * Set values for all keys
-     *
-     * @param array $data
-     *
-     * @return $this
-     */
-    public function replace(array $data)
-    {
-        foreach ($data as $key => $value) {
-            $this->$key = $value;
-        }
 
         return $this;
     }

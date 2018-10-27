@@ -179,21 +179,6 @@ class Container extends PimpleContainer implements ContainerInterface
     }
 
     /**
-     * Returns true if the container can return an entry for the given identifier.
-     * Returns false otherwise.
-     * `has($id)` returning true does not mean that `get($id)` will not throw an exception.
-     * It does however mean that `get($id)` will not throw a `NotFoundExceptionInterface`.
-     *
-     * @param string $id Identifier of the entry to look for.
-     *
-     * @return bool
-     */
-    public function has($id)
-    {
-        return $this->offsetExists($id);
-    }
-
-    /**
      * Set an entry in container
      *
      * @param string $id    The unique identifier for the parameter or object
@@ -209,8 +194,6 @@ class Container extends PimpleContainer implements ContainerInterface
         return $this;
     }
 
-    // Magic methods
-
     /**
      * @param $name
      *
@@ -223,8 +206,25 @@ class Container extends PimpleContainer implements ContainerInterface
         return $this->get($name);
     }
 
+    // Magic methods
+
     public function __isset($name)
     {
         return $this->has($name);
+    }
+
+    /**
+     * Returns true if the container can return an entry for the given identifier.
+     * Returns false otherwise.
+     * `has($id)` returning true does not mean that `get($id)` will not throw an exception.
+     * It does however mean that `get($id)` will not throw a `NotFoundExceptionInterface`.
+     *
+     * @param string $id Identifier of the entry to look for.
+     *
+     * @return bool
+     */
+    public function has($id)
+    {
+        return $this->offsetExists($id);
     }
 }

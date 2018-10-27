@@ -13,7 +13,7 @@ class Environment
     /**
      * Create mock environment
      *
-     * @param  array $userData Array of custom environment keys and values
+     * @param array $userData Array of custom environment keys and values
      *
      * @return self
      */

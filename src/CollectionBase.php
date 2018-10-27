@@ -22,6 +22,12 @@ class CollectionBase implements CollectionInterface
      * @var array
      */
     protected $items = [];
+    /**
+     * Iterator position
+     *
+     * @var int
+     */
+    protected $position = 0;
 
     /**
      * Create a new collection.
@@ -33,33 +39,6 @@ class CollectionBase implements CollectionInterface
     final public function __construct($items = [])
     {
         $this->replace(static::getArrayByItems($items));
-    }
-
-    /**
-     * Returns element that corresponds to the specified index
-     *
-     * @param int   $key
-     * @param mixed $default
-     *
-     * @return mixed
-     * @internal param int $index
-     */
-    public function get($key, $default = null)
-    {
-        return $this->offsetGet($key) ?? $default;
-    }
-
-    /**
-     * Set value of the element
-     *
-     * @param int         $key
-     * @param Model|array $value
-     *
-     * @return $this
-     */
-    public function set($key, $value)
-    {
-        return $this->offsetSet($key, $value);
     }
 
     /**
@@ -79,6 +58,72 @@ class CollectionBase implements CollectionInterface
     }
 
     /**
+     * Set value of the element
+     *
+     * @param int         $key
+     * @param Model|array $value
+     *
+     * @return $this
+     */
+    public function set($key, $value)
+    {
+        return $this->offsetSet($key, $value);
+    }
+
+    /**
+     * Set collection item
+     *
+     * @param string $key   The data key
+     * @param mixed  $value The data value
+     *
+     * @return $this
+     */
+    public function offsetSet($key, $value)
+    {
+        if (is_null($key)) {
+            if ($value instanceof Model) {
+                $this->items[] = $value->toArray();
+            } else {
+                $this->items[] = $value;
+            }
+        } else {
+            if ($value instanceof Model) {
+                $this->items[$key] = $value->toArray();
+            } else {
+                $this->items[$key] = $value;
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * Results array of items from Collection or Array.
+     *
+     * @param mixed $items
+     *
+     * @return array
+     */
+    protected static function getArrayByItems($items)
+    {
+        switch (true) {
+            case is_array($items):
+                return $items;
+
+            case $items instanceof self:
+                return $items->all();
+
+            case $items instanceof JsonSerializable:
+                return $items->jsonSerialize();
+
+            case $items instanceof Traversable:
+                return iterator_to_array($items);
+        }
+
+        return (array)$items;
+    }
+
+    /**
      * Get all items in collection
      *
      * @return array The collection's source data
@@ -86,6 +131,36 @@ class CollectionBase implements CollectionInterface
     public function all()
     {
         return $this->items;
+    }
+
+    /**
+     * Returns element that corresponds to the specified index
+     *
+     * @param int   $key
+     * @param mixed $default
+     *
+     * @return mixed
+     * @internal param int $index
+     */
+    public function get($key, $default = null)
+    {
+        return $this->offsetGet($key) ?? $default;
+    }
+
+    /**
+     * Get collection item for key
+     *
+     * @param string $key The data key
+     *
+     * @return mixed The key's value, or the default value
+     */
+    public function offsetGet($key)
+    {
+        if (static::$model) {
+            return new static::$model($this->items[$key]);
+        }
+
+        return $this->items[$key];
     }
 
     /**
@@ -101,6 +176,18 @@ class CollectionBase implements CollectionInterface
     }
 
     /**
+     * Does this collection have a given key?
+     *
+     * @param string $key The data key
+     *
+     * @return bool
+     */
+    public function offsetExists($key)
+    {
+        return array_key_exists($key, $this->items);
+    }
+
+    /**
      * Remove item from collection
      *
      * @param string $key The data key
@@ -110,6 +197,20 @@ class CollectionBase implements CollectionInterface
     public function remove($key)
     {
         return $this->offsetUnset($key);
+    }
+
+    /**
+     * Remove item from collection
+     *
+     * @param string $key The data key
+     *
+     * @return $this
+     */
+    public function offsetUnset($key)
+    {
+        unset($this->items[$key]);
+
+        return $this;
     }
 
     /**
@@ -260,7 +361,7 @@ class CollectionBase implements CollectionInterface
      * @usage $oc->sort(function(mixed $a, mixed $b, $args))
      *
      * @param callable|string $param
-     * @param mixed $args
+     * @param mixed           $args
      *
      * @return $this
      */
@@ -305,39 +406,6 @@ class CollectionBase implements CollectionInterface
     }
 
     /**
-     * Results array of items from Collection or Array.
-     *
-     * @param mixed $items
-     *
-     * @return array
-     */
-    protected static function getArrayByItems($items)
-    {
-        switch (true) {
-            case is_array($items):
-                return $items;
-
-            case $items instanceof self:
-                return $items->all();
-
-            case $items instanceof JsonSerializable:
-                return $items->jsonSerialize();
-
-            case $items instanceof Traversable:
-                return iterator_to_array($items);
-        }
-
-        return (array)$items;
-    }
-
-    /**
-     * Iterator position
-     *
-     * @var int
-     */
-    protected $position = 0;
-
-    /**
      * Returns current element of the array
      *
      * @return mixed
@@ -351,6 +419,22 @@ class CollectionBase implements CollectionInterface
         }
 
         return $buf;
+    }
+
+    /**
+     * Returns current element key
+     *
+     * @return int
+     */
+    public function key()
+    {
+        $bufKeys = array_keys($this->items);
+
+        if ($bufKeys && isset($bufKeys[$this->position])) {
+            return $bufKeys[$this->position];
+        }
+
+        return false;
     }
 
     /**
@@ -375,22 +459,6 @@ class CollectionBase implements CollectionInterface
         $this->position--;
 
         return $this;
-    }
-
-    /**
-     * Returns current element key
-     *
-     * @return int
-     */
-    public function key()
-    {
-        $bufKeys = array_keys($this->items);
-
-        if ($bufKeys && isset($bufKeys[$this->position])) {
-            return $bufKeys[$this->position];
-        }
-
-        return false;
     }
 
     /**
@@ -423,75 +491,6 @@ class CollectionBase implements CollectionInterface
     public function count()
     {
         return count($this->items);
-    }
-
-    /**
-     * Does this collection have a given key?
-     *
-     * @param string $key The data key
-     *
-     * @return bool
-     */
-    public function offsetExists($key)
-    {
-        return array_key_exists($key, $this->items);
-    }
-
-    /**
-     * Get collection item for key
-     *
-     * @param string $key The data key
-     *
-     * @return mixed The key's value, or the default value
-     */
-    public function offsetGet($key)
-    {
-        if (static::$model) {
-            return new static::$model($this->items[$key]);
-        }
-
-        return $this->items[$key];
-    }
-
-    /**
-     * Set collection item
-     *
-     * @param string $key   The data key
-     * @param mixed  $value The data value
-     *
-     * @return $this
-     */
-    public function offsetSet($key, $value)
-    {
-        if (is_null($key)) {
-            if ($value instanceof Model) {
-                $this->items[] = $value->toArray();
-            } else {
-                $this->items[] = $value;
-            }
-        } else {
-            if ($value instanceof Model) {
-                $this->items[$key] = $value->toArray();
-            } else {
-                $this->items[$key] = $value;
-            }
-        }
-
-        return $this;
-    }
-
-    /**
-     * Remove item from collection
-     *
-     * @param string $key The data key
-     *
-     * @return $this
-     */
-    public function offsetUnset($key)
-    {
-        unset($this->items[$key]);
-
-        return $this;
     }
 
     /**

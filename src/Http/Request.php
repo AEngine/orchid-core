@@ -5,11 +5,11 @@ namespace AEngine\Orchid\Http;
 use AEngine\Orchid\Collection;
 use AEngine\Orchid\Interfaces\HeadersInterface;
 use Closure;
-use Psr\Http\Message\UploadedFileInterface;
-use Psr\Http\Message\ServerRequestInterface;
-use Psr\Http\Message\UriInterface;
-use Psr\Http\Message\StreamInterface;
 use InvalidArgumentException;
+use Psr\Http\Message\ServerRequestInterface;
+use Psr\Http\Message\StreamInterface;
+use Psr\Http\Message\UploadedFileInterface;
+use Psr\Http\Message\UriInterface;
 use RuntimeException;
 
 /**
@@ -94,36 +94,6 @@ class Request extends Message implements ServerRequestInterface
      * @var UploadedFileInterface[]
      */
     protected $uploadedFiles;
-
-    /**
-     * Create new HTTP request with data extracted from the application
-     * Environment object
-     *
-     * @param array $globals The global server variables.
-     *
-     * @return static
-     */
-    public static function createFromGlobals(array $globals)
-    {
-        $method = isset($globals['REQUEST_METHOD']) ? $globals['REQUEST_METHOD'] : null;
-        $uri = Uri::createFromGlobals($globals);
-        $headers = Headers::createFromGlobals($globals);
-        $cookies = Cookies::parseHeader($headers->get('Cookie', []));
-        $serverParams = $globals;
-        $body = new RequestBody();
-        $uploadedFiles = UploadedFile::createFromGlobals($globals);
-
-        $request = new static($method, $uri, $headers, $cookies, $serverParams, $body, $uploadedFiles);
-
-        if ($method === 'POST' &&
-            in_array($request->getMediaType(), ['application/x-www-form-urlencoded', 'multipart/form-data'])
-        ) {
-            // parsed body must be $_POST
-            $request = $request->withParsedBody($_POST);
-        }
-
-        return $request;
-    }
 
     /**
      * Create new HTTP request.
@@ -212,57 +182,9 @@ class Request extends Message implements ServerRequestInterface
     }
 
     /**
-     * This method is applied to the cloned object
-     * after PHP performs an initial shallow-copy. This
-     * method completes a deep-copy by creating new objects
-     * for the cloned object's internal reference pointers.
-     */
-    public function __clone()
-    {
-        $this->headers = clone $this->headers;
-        $this->attributes = clone $this->attributes;
-        $this->body = clone $this->body;
-    }
-
-    /**
-     * Retrieves the HTTP method of the request.
-     *
-     * @return string Returns the request method.
-     */
-    public function getMethod()
-    {
-        return $this->method;
-    }
-
-    /**
-     * Return an instance with the provided HTTP method.
-     *
-     * While HTTP method names are typically all uppercase characters, HTTP
-     * method names are case-sensitive and thus implementations SHOULD NOT
-     * modify the given string.
-     *
-     * This method MUST be implemented in such a way as to retain the
-     * immutability of the message, and MUST return an instance that has the
-     * changed request method.
-     *
-     * @param string $method Case-sensitive method.
-     *
-     * @return static
-     * @throws InvalidArgumentException for invalid HTTP methods.
-     */
-    public function withMethod($method)
-    {
-        $method = $this->filterMethod($method);
-        $clone = clone $this;
-        $clone->method = $method;
-
-        return $clone;
-    }
-
-    /**
      * Validate the HTTP method
      *
-     * @param  null|string $method
+     * @param null|string $method
      *
      * @return null|string
      * @throws InvalidArgumentException on invalid HTTP method.
@@ -291,17 +213,163 @@ class Request extends Message implements ServerRequestInterface
     }
 
     /**
-     * Does this request use a given method?
+     * Register media type parser.
      *
      * Note: This method is not part of the PSR-7 standard.
      *
-     * @param  string $method HTTP method
-     *
-     * @return bool
+     * @param string   $mediaType A HTTP media type (excluding content-type
+     *                            params).
+     * @param callable $callable  A callable that returns parsed contents for
+     *                            media type.
      */
-    public function isMethod($method)
+    public function registerMediaTypeParser($mediaType, callable $callable)
     {
-        return $this->getMethod() === $method;
+        if ($callable instanceof Closure) {
+            $callable = $callable->bindTo($this);
+        }
+        $this->bodyParsers[(string)$mediaType] = $callable;
+    }
+
+    /**
+     * Create new HTTP request with data extracted from the application
+     * Environment object
+     *
+     * @param array $globals The global server variables.
+     *
+     * @return static
+     */
+    public static function createFromGlobals(array $globals)
+    {
+        $method = isset($globals['REQUEST_METHOD']) ? $globals['REQUEST_METHOD'] : null;
+        $uri = Uri::createFromGlobals($globals);
+        $headers = Headers::createFromGlobals($globals);
+        $cookies = Cookies::parseHeader($headers->get('Cookie', []));
+        $serverParams = $globals;
+        $body = new RequestBody();
+        $uploadedFiles = UploadedFile::createFromGlobals($globals);
+
+        $request = new static($method, $uri, $headers, $cookies, $serverParams, $body, $uploadedFiles);
+
+        if ($method === 'POST' &&
+            in_array($request->getMediaType(), ['application/x-www-form-urlencoded', 'multipart/form-data'])
+        ) {
+            // parsed body must be $_POST
+            $request = $request->withParsedBody($_POST);
+        }
+
+        return $request;
+    }
+
+    /**
+     * Get request media type, if known.
+     *
+     * Note: This method is not part of the PSR-7 standard.
+     *
+     * @return string|null The request media type, minus content-type params
+     */
+    public function getMediaType()
+    {
+        $contentType = $this->getContentType();
+        if ($contentType) {
+            $contentTypeParts = preg_split('/\s*[;,]\s*/', $contentType);
+
+            return strtolower($contentTypeParts[0]);
+        }
+
+        return null;
+    }
+
+    /**
+     * Get request content type.
+     *
+     * Note: This method is not part of the PSR-7 standard.
+     *
+     * @return string|null The request content type, if known
+     */
+    public function getContentType()
+    {
+        $result = $this->getHeader('Content-Type');
+
+        return $result ? $result[0] : null;
+    }
+
+    /**
+     * Return an instance with the specified body parameters.
+     *
+     * These MAY be injected during instantiation.
+     *
+     * If the request Content-Type is either application/x-www-form-urlencoded
+     * or multipart/form-data, and the request method is POST, use this method
+     * ONLY to inject the contents of $_POST.
+     *
+     * The data IS NOT REQUIRED to come from $_POST, but MUST be the results of
+     * deserializing the request body content. Deserialization/parsing returns
+     * structured data, and, as such, this method ONLY accepts arrays or objects,
+     * or a null value if nothing was available to parse.
+     *
+     * As an example, if content negotiation determines that the request data
+     * is a JSON payload, this method could be used to create a request
+     * instance with the deserialized parameters.
+     *
+     * This method MUST be implemented in such a way as to retain the
+     * immutability of the message, and MUST return an instance that has the
+     * updated body parameters.
+     *
+     * @param null|array|object $data The deserialized body data. This will
+     *                                typically be in an array or object.
+     *
+     * @return static
+     * @throws InvalidArgumentException if an unsupported argument type is
+     *     provided.
+     */
+    public function withParsedBody($data)
+    {
+        if (!is_null($data) && !is_object($data) && !is_array($data)) {
+            throw new InvalidArgumentException('Parsed body value must be an array, an object, or null');
+        }
+
+        $clone = clone $this;
+        $clone->bodyParsed = $data;
+
+        return $clone;
+    }
+
+    /**
+     * This method is applied to the cloned object
+     * after PHP performs an initial shallow-copy. This
+     * method completes a deep-copy by creating new objects
+     * for the cloned object's internal reference pointers.
+     */
+    public function __clone()
+    {
+        $this->headers = clone $this->headers;
+        $this->attributes = clone $this->attributes;
+        $this->body = clone $this->body;
+    }
+
+    /**
+     * Return an instance with the provided HTTP method.
+     *
+     * While HTTP method names are typically all uppercase characters, HTTP
+     * method names are case-sensitive and thus implementations SHOULD NOT
+     * modify the given string.
+     *
+     * This method MUST be implemented in such a way as to retain the
+     * immutability of the message, and MUST return an instance that has the
+     * changed request method.
+     *
+     * @param string $method Case-sensitive method.
+     *
+     * @return static
+     * @throws InvalidArgumentException for invalid HTTP methods.
+     */
+    public function withMethod($method)
+    {
+        $method = $this->filterMethod($method);
+        $clone = clone $this;
+        $clone->method = $method;
+
+        return $clone;
     }
 
     /**
@@ -314,6 +382,30 @@ class Request extends Message implements ServerRequestInterface
     public function isGet()
     {
         return $this->isMethod('GET');
+    }
+
+    /**
+     * Does this request use a given method?
+     *
+     * Note: This method is not part of the PSR-7 standard.
+     *
+     * @param string $method HTTP method
+     *
+     * @return bool
+     */
+    public function isMethod($method)
+    {
+        return $this->getMethod() === $method;
+    }
+
+    /**
+     * Retrieves the HTTP method of the request.
+     *
+     * @return string Returns the request method.
+     */
+    public function getMethod()
+    {
+        return $this->method;
     }
 
     /**
@@ -536,33 +628,17 @@ class Request extends Message implements ServerRequestInterface
     }
 
     /**
-     * Get request content type.
+     * Get request content character set, if known.
      *
      * Note: This method is not part of the PSR-7 standard.
      *
-     * @return string|null The request content type, if known
+     * @return string|null
      */
-    public function getContentType()
+    public function getContentCharset()
     {
-        $result = $this->getHeader('Content-Type');
-
-        return $result ? $result[0] : null;
-    }
-
-    /**
-     * Get request media type, if known.
-     *
-     * Note: This method is not part of the PSR-7 standard.
-     *
-     * @return string|null The request media type, minus content-type params
-     */
-    public function getMediaType()
-    {
-        $contentType = $this->getContentType();
-        if ($contentType) {
-            $contentTypeParts = preg_split('/\s*[;,]\s*/', $contentType);
-
-            return strtolower($contentTypeParts[0]);
+        $mediaTypeParams = $this->getMediaTypeParams();
+        if (isset($mediaTypeParams['charset'])) {
+            return $mediaTypeParams['charset'];
         }
 
         return null;
@@ -592,23 +668,6 @@ class Request extends Message implements ServerRequestInterface
     }
 
     /**
-     * Get request content character set, if known.
-     *
-     * Note: This method is not part of the PSR-7 standard.
-     *
-     * @return string|null
-     */
-    public function getContentCharset()
-    {
-        $mediaTypeParams = $this->getMediaTypeParams();
-        if (isset($mediaTypeParams['charset'])) {
-            return $mediaTypeParams['charset'];
-        }
-
-        return null;
-    }
-
-    /**
      * Get request content length, if known.
      *
      * Note: This method is not part of the PSR-7 standard.
@@ -620,21 +679,6 @@ class Request extends Message implements ServerRequestInterface
         $result = $this->headers->get('Content-Length');
 
         return $result ? (int)$result[0] : null;
-    }
-
-    /**
-     * Retrieve cookies.
-     *
-     * Retrieves cookies sent by the client to the server.
-     *
-     * The data MUST be compatible with the structure of the $_COOKIE
-     * superglobal.
-     *
-     * @return array
-     */
-    public function getCookieParams()
-    {
-        return $this->cookies;
     }
 
     /**
@@ -656,6 +700,21 @@ class Request extends Message implements ServerRequestInterface
         }
 
         return $result;
+    }
+
+    /**
+     * Retrieve cookies.
+     *
+     * Retrieves cookies sent by the client to the server.
+     *
+     * The data MUST be compatible with the structure of the $_COOKIE
+     * superglobal.
+     *
+     * @return array
+     */
+    public function getCookieParams()
+    {
+        return $this->cookies;
     }
 
     /**
@@ -682,33 +741,6 @@ class Request extends Message implements ServerRequestInterface
         $clone->cookies = $cookies;
 
         return $clone;
-    }
-
-    /**
-     * Retrieve query string arguments.
-     *
-     * Retrieves the deserialized query string arguments, if any.
-     *
-     * Note: the query params might not be in sync with the URI or server
-     * params. If you need to ensure you are only getting the original
-     * values, you may need to parse the query string from `getUri()->getQuery()`
-     * or from the `QUERY_STRING` server param.
-     *
-     * @return array
-     */
-    public function getQueryParams()
-    {
-        if (is_array($this->queryParams)) {
-            return $this->queryParams;
-        }
-
-        if ($this->uri === null) {
-            return [];
-        }
-
-        parse_str($this->uri->getQuery(), $this->queryParams); // <-- URL decodes data
-
-        return $this->queryParams;
     }
 
     /**
@@ -780,6 +812,23 @@ class Request extends Message implements ServerRequestInterface
     }
 
     /**
+     * Retrieve a server parameter.
+     *
+     * Note: This method is not part of the PSR-7 standard.
+     *
+     * @param string $key
+     * @param mixed  $default
+     *
+     * @return mixed
+     */
+    public function getServerParam($key, $default = null)
+    {
+        $serverParams = $this->getServerParams();
+
+        return isset($serverParams[$key]) ? $serverParams[$key] : $default;
+    }
+
+    /**
      * Retrieve server parameters.
      *
      * Retrieves data related to the incoming request environment,
@@ -791,23 +840,6 @@ class Request extends Message implements ServerRequestInterface
     public function getServerParams()
     {
         return $this->serverParams;
-    }
-
-    /**
-     * Retrieve a server parameter.
-     *
-     * Note: This method is not part of the PSR-7 standard.
-     *
-     * @param  string $key
-     * @param  mixed  $default
-     *
-     * @return mixed
-     */
-    public function getServerParam($key, $default = null)
-    {
-        $serverParams = $this->getServerParams();
-
-        return isset($serverParams[$key]) ? $serverParams[$key] : $default;
     }
 
     /**
@@ -885,7 +917,7 @@ class Request extends Message implements ServerRequestInterface
      * immutability of the message, and MUST return a new instance that has the
      * updated attributes.
      *
-     * @param  array $attributes New attributes
+     * @param array $attributes New attributes
      *
      * @return static
      */
@@ -919,6 +951,46 @@ class Request extends Message implements ServerRequestInterface
         $clone->attributes->remove($name);
 
         return $clone;
+    }
+
+    /**
+     * Force Body to be parsed again.
+     *
+     * Note: This method is not part of the PSR-7 standard.
+     *
+     * @return $this
+     */
+    public function reparseBody()
+    {
+        $this->bodyParsed = false;
+
+        return $this;
+    }
+
+    /**
+     * Fetch request parameter value from body or query string (in that order).
+     *
+     * Note: This method is not part of the PSR-7 standard.
+     *
+     * @param string $key     The parameter key.
+     * @param string $default The default value.
+     *
+     * @return mixed The parameter value.
+     */
+    public function getParam($key, $default = null)
+    {
+        $postParams = $this->getParsedBody();
+        $getParams = $this->getQueryParams();
+        $result = $default;
+        if (is_array($postParams) && isset($postParams[$key])) {
+            $result = $postParams[$key];
+        } else if (is_object($postParams) && property_exists($postParams, $key)) {
+            $result = $postParams->$key;
+        } else if (isset($getParams[$key])) {
+            $result = $getParams[$key];
+        }
+
+        return $result;
     }
 
     /**
@@ -973,102 +1045,30 @@ class Request extends Message implements ServerRequestInterface
     }
 
     /**
-     * Return an instance with the specified body parameters.
+     * Retrieve query string arguments.
      *
-     * These MAY be injected during instantiation.
+     * Retrieves the deserialized query string arguments, if any.
      *
-     * If the request Content-Type is either application/x-www-form-urlencoded
-     * or multipart/form-data, and the request method is POST, use this method
-     * ONLY to inject the contents of $_POST.
+     * Note: the query params might not be in sync with the URI or server
+     * params. If you need to ensure you are only getting the original
+     * values, you may need to parse the query string from `getUri()->getQuery()`
+     * or from the `QUERY_STRING` server param.
      *
-     * The data IS NOT REQUIRED to come from $_POST, but MUST be the results of
-     * deserializing the request body content. Deserialization/parsing returns
-     * structured data, and, as such, this method ONLY accepts arrays or objects,
-     * or a null value if nothing was available to parse.
-     *
-     * As an example, if content negotiation determines that the request data
-     * is a JSON payload, this method could be used to create a request
-     * instance with the deserialized parameters.
-     *
-     * This method MUST be implemented in such a way as to retain the
-     * immutability of the message, and MUST return an instance that has the
-     * updated body parameters.
-     *
-     * @param null|array|object $data The deserialized body data. This will
-     *                                typically be in an array or object.
-     *
-     * @return static
-     * @throws InvalidArgumentException if an unsupported argument type is
-     *     provided.
+     * @return array
      */
-    public function withParsedBody($data)
+    public function getQueryParams()
     {
-        if (!is_null($data) && !is_object($data) && !is_array($data)) {
-            throw new InvalidArgumentException('Parsed body value must be an array, an object, or null');
+        if (is_array($this->queryParams)) {
+            return $this->queryParams;
         }
 
-        $clone = clone $this;
-        $clone->bodyParsed = $data;
-
-        return $clone;
-    }
-
-    /**
-     * Force Body to be parsed again.
-     *
-     * Note: This method is not part of the PSR-7 standard.
-     *
-     * @return $this
-     */
-    public function reparseBody()
-    {
-        $this->bodyParsed = false;
-
-        return $this;
-    }
-
-    /**
-     * Register media type parser.
-     *
-     * Note: This method is not part of the PSR-7 standard.
-     *
-     * @param string   $mediaType A HTTP media type (excluding content-type
-     *                            params).
-     * @param callable $callable  A callable that returns parsed contents for
-     *                            media type.
-     */
-    public function registerMediaTypeParser($mediaType, callable $callable)
-    {
-        if ($callable instanceof Closure) {
-            $callable = $callable->bindTo($this);
-        }
-        $this->bodyParsers[(string)$mediaType] = $callable;
-    }
-
-    /**
-     * Fetch request parameter value from body or query string (in that order).
-     *
-     * Note: This method is not part of the PSR-7 standard.
-     *
-     * @param  string $key     The parameter key.
-     * @param  string $default The default value.
-     *
-     * @return mixed The parameter value.
-     */
-    public function getParam($key, $default = null)
-    {
-        $postParams = $this->getParsedBody();
-        $getParams = $this->getQueryParams();
-        $result = $default;
-        if (is_array($postParams) && isset($postParams[$key])) {
-            $result = $postParams[$key];
-        } else if (is_object($postParams) && property_exists($postParams, $key)) {
-            $result = $postParams->$key;
-        } else if (isset($getParams[$key])) {
-            $result = $getParams[$key];
+        if ($this->uri === null) {
+            return [];
         }
 
-        return $result;
+        parse_str($this->uri->getQuery(), $this->queryParams); // <-- URL decodes data
+
+        return $this->queryParams;
     }
 
     /**

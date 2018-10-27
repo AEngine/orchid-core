@@ -50,6 +50,46 @@ class Cookies implements CookiesInterface
     }
 
     /**
+     * Parse HTTP request `Cookie:` header and extract
+     * into a PHP associative array.
+     *
+     * @param string $header The raw HTTP request `Cookie:` header
+     *
+     * @return array Associative array of cookie names and values
+     *
+     * @throws InvalidArgumentException if the cookie data cannot be parsed
+     */
+    public static function parseHeader($header)
+    {
+        if (is_array($header) === true) {
+            $header = isset($header[0]) ? $header[0] : '';
+        }
+
+        if (is_string($header) === false) {
+            throw new InvalidArgumentException('Cannot parse Cookie data. Header value must be a string.');
+        }
+
+        $header = rtrim($header, "\r\n");
+        $pieces = preg_split('@[;]\s*@', $header);
+        $cookies = [];
+
+        foreach ($pieces as $cookie) {
+            $cookie = explode('=', $cookie, 2);
+
+            if (count($cookie) === 2) {
+                $key = urldecode($cookie[0]);
+                $value = urldecode($cookie[1]);
+
+                if (!isset($cookies[$key])) {
+                    $cookies[$key] = $value;
+                }
+            }
+        }
+
+        return $cookies;
+    }
+
+    /**
      * Set default cookie properties
      *
      * @param array $settings
@@ -62,8 +102,8 @@ class Cookies implements CookiesInterface
     /**
      * Get request cookie
      *
-     * @param  string $name    Cookie name
-     * @param  mixed  $default Cookie default value
+     * @param string $name    Cookie name
+     * @param mixed  $default Cookie default value
      *
      * @return mixed Cookie value if present, else default
      */
@@ -104,8 +144,8 @@ class Cookies implements CookiesInterface
     /**
      * Convert to `Set-Cookie` header
      *
-     * @param  string $name       Cookie name
-     * @param  array  $properties Cookie properties
+     * @param string $name       Cookie name
+     * @param array  $properties Cookie properties
      *
      * @return string
      */
@@ -145,45 +185,5 @@ class Cookies implements CookiesInterface
         }
 
         return $result;
-    }
-
-    /**
-     * Parse HTTP request `Cookie:` header and extract
-     * into a PHP associative array.
-     *
-     * @param  string $header The raw HTTP request `Cookie:` header
-     *
-     * @return array Associative array of cookie names and values
-     *
-     * @throws InvalidArgumentException if the cookie data cannot be parsed
-     */
-    public static function parseHeader($header)
-    {
-        if (is_array($header) === true) {
-            $header = isset($header[0]) ? $header[0] : '';
-        }
-
-        if (is_string($header) === false) {
-            throw new InvalidArgumentException('Cannot parse Cookie data. Header value must be a string.');
-        }
-
-        $header = rtrim($header, "\r\n");
-        $pieces = preg_split('@[;]\s*@', $header);
-        $cookies = [];
-
-        foreach ($pieces as $cookie) {
-            $cookie = explode('=', $cookie, 2);
-
-            if (count($cookie) === 2) {
-                $key = urldecode($cookie[0]);
-                $value = urldecode($cookie[1]);
-
-                if (!isset($cookies[$key])) {
-                    $cookies[$key] = $value;
-                }
-            }
-        }
-
-        return $cookies;
     }
 }

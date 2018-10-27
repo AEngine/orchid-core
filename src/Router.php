@@ -2,14 +2,14 @@
 
 namespace AEngine\Orchid;
 
-use Closure;
 use AEngine\Orchid\Interfaces\RouteGroupInterface;
 use AEngine\Orchid\Interfaces\RouteInterface;
 use AEngine\Orchid\Interfaces\RouterInterface;
+use Closure;
+use InvalidArgumentException;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\UriInterface;
-use InvalidArgumentException;
 use RuntimeException;
 
 class Router implements RouterInterface
@@ -36,115 +36,17 @@ class Router implements RouterInterface
     protected $routeGroups = [];
 
     /**
-     * Add GET route
-     *
-     * @param  string               $pattern The route URI pattern
-     * @param  string|array|Closure $callable The route callback routine
-     * @param  int                  $priority The route priority
-     *
-     * @return RouteInterface
-     */
-    public function get($pattern, $callable, $priority = 0)
-    {
-        return $this->map(['GET'], $pattern, $callable, $priority);
-    }
-
-    /**
      * Add POST route
      *
-     * @param  string               $pattern The route URI pattern
-     * @param  string|array|Closure $callable The route callback routine
-     * @param  int                  $priority The route priority
+     * @param string               $pattern  The route URI pattern
+     * @param string|array|Closure $callable The route callback routine
+     * @param int                  $priority The route priority
      *
      * @return RouteInterface
      */
     public function post($pattern, $callable, $priority = 0)
     {
         return $this->map(['POST'], $pattern, $callable, $priority);
-    }
-
-    /**
-     * Add PUT route
-     *
-     * @param  string               $pattern The route URI pattern
-     * @param  string|array|Closure $callable The route callback routine
-     * @param  int                  $priority The route priority
-     *
-     * @return RouteInterface
-     */
-    public function put($pattern, $callable, $priority = 0)
-    {
-        return $this->map(['PUT'], $pattern, $callable, $priority);
-    }
-
-    /**
-     * Add PATCH route
-     *
-     * @param  string               $pattern The route URI pattern
-     * @param  string|array|Closure $callable The route callback routine
-     * @param  int                  $priority The route priority
-     *
-     * @return RouteInterface
-     */
-    public function patch($pattern, $callable, $priority = 0)
-    {
-        return $this->map(['PATCH'], $pattern, $callable, $priority);
-    }
-
-    /**
-     * Add DELETE route
-     *
-     * @param  string               $pattern The route URI pattern
-     * @param  string|array|Closure $callable The route callback routine
-     * @param  int                  $priority The route priority
-     *
-     * @return RouteInterface
-     */
-    public function delete($pattern, $callable, $priority = 0)
-    {
-        return $this->map(['DELETE'], $pattern, $callable, $priority);
-    }
-
-    /**
-     * Add OPTIONS route
-     *
-     * @param  string               $pattern The route URI pattern
-     * @param  string|array|Closure $callable The route callback routine
-     * @param  int                  $priority The route priority
-     *
-     * @return RouteInterface
-     */
-    public function options($pattern, $callable, $priority = 0)
-    {
-        return $this->map(['OPTIONS'], $pattern, $callable, $priority);
-    }
-
-    /**
-     * Add HEAD route
-     *
-     * @param  string               $pattern The route URI pattern
-     * @param  string|array|Closure $callable The route callback routine
-     * @param  int                  $priority The route priority
-     *
-     * @return RouteInterface
-     */
-    public function head($pattern, $callable, $priority = 0)
-    {
-        return $this->map(['HEAD'], $pattern, $callable, $priority);
-    }
-
-    /**
-     * Add route for any HTTP method
-     *
-     * @param  string               $pattern The route URI pattern
-     * @param  string|array|Closure $callable The route callback routine
-     * @param  int                  $priority The route priority
-     *
-     * @return RouteInterface
-     */
-    public function any($pattern, $callable, $priority = 0)
-    {
-        return $this->map(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'], $pattern, $callable, $priority);
     }
 
     /**
@@ -178,6 +80,105 @@ class Router implements RouterInterface
     }
 
     /**
+     * Process route groups
+     *
+     * @return string A group pattern to prefix routes with
+     */
+    protected function processGroups()
+    {
+        $pattern = '';
+        foreach ($this->routeGroups as $group) {
+            $pattern .= $group->getPattern();
+        }
+
+        return $pattern;
+    }
+
+    /**
+     * Add PUT route
+     *
+     * @param string               $pattern  The route URI pattern
+     * @param string|array|Closure $callable The route callback routine
+     * @param int                  $priority The route priority
+     *
+     * @return RouteInterface
+     */
+    public function put($pattern, $callable, $priority = 0)
+    {
+        return $this->map(['PUT'], $pattern, $callable, $priority);
+    }
+
+    /**
+     * Add PATCH route
+     *
+     * @param string               $pattern  The route URI pattern
+     * @param string|array|Closure $callable The route callback routine
+     * @param int                  $priority The route priority
+     *
+     * @return RouteInterface
+     */
+    public function patch($pattern, $callable, $priority = 0)
+    {
+        return $this->map(['PATCH'], $pattern, $callable, $priority);
+    }
+
+    /**
+     * Add DELETE route
+     *
+     * @param string               $pattern  The route URI pattern
+     * @param string|array|Closure $callable The route callback routine
+     * @param int                  $priority The route priority
+     *
+     * @return RouteInterface
+     */
+    public function delete($pattern, $callable, $priority = 0)
+    {
+        return $this->map(['DELETE'], $pattern, $callable, $priority);
+    }
+
+    /**
+     * Add OPTIONS route
+     *
+     * @param string               $pattern  The route URI pattern
+     * @param string|array|Closure $callable The route callback routine
+     * @param int                  $priority The route priority
+     *
+     * @return RouteInterface
+     */
+    public function options($pattern, $callable, $priority = 0)
+    {
+        return $this->map(['OPTIONS'], $pattern, $callable, $priority);
+    }
+
+    /**
+     * Add HEAD route
+     *
+     * @param string               $pattern  The route URI pattern
+     * @param string|array|Closure $callable The route callback routine
+     * @param int                  $priority The route priority
+     *
+     * @return RouteInterface
+     */
+    public function head($pattern, $callable, $priority = 0)
+    {
+        return $this->map(['HEAD'], $pattern, $callable, $priority);
+    }
+
+    /**
+     * Add route for any HTTP method
+     *
+     * @param string               $pattern  The route URI pattern
+     * @param string|array|Closure $callable The route callback routine
+     * @param int                  $priority The route priority
+     *
+     * @return RouteInterface
+     */
+    public function any($pattern, $callable, $priority = 0)
+    {
+        return $this->map(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'], $pattern, $callable, $priority);
+    }
+
+    /**
      * Add a route that sends an HTTP redirect
      *
      * @param string              $from
@@ -193,6 +194,20 @@ class Router implements RouterInterface
         };
 
         return $this->get($from, $handler);
+    }
+
+    /**
+     * Add GET route
+     *
+     * @param string               $pattern  The route URI pattern
+     * @param string|array|Closure $callable The route callback routine
+     * @param int                  $priority The route priority
+     *
+     * @return RouteInterface
+     */
+    public function get($pattern, $callable, $priority = 0)
+    {
+        return $this->map(['GET'], $pattern, $callable, $priority);
     }
 
     /**
@@ -225,24 +240,9 @@ class Router implements RouterInterface
     }
 
     /**
-     * Process route groups
-     *
-     * @return string A group pattern to prefix routes with
-     */
-    protected function processGroups()
-    {
-        $pattern = '';
-        foreach ($this->routeGroups as $group) {
-            $pattern .= $group->getPattern();
-        }
-
-        return $pattern;
-    }
-
-    /**
      * Dispatch router for HTTP request
      *
-     * @param  ServerRequestInterface $request The current HTTP request object
+     * @param ServerRequestInterface $request The current HTTP request object
      *
      * @return RouteInterface
      * @throws RuntimeException
@@ -253,10 +253,10 @@ class Router implements RouterInterface
             throw new RuntimeException('Route list is empty');
         }
 
-        $method   = $request->getMethod();
+        $method = $request->getMethod();
         $pathname = '/' . ltrim($request->getUri()->getPath(), '/');
-        $found    = null; // current route
-        $params   = [];
+        $found = null; // current route
+        $params = [];
 
         usort($this->routes, [$this, 'compare']);
 
@@ -271,7 +271,7 @@ class Router implements RouterInterface
                 if (substr($route->getPattern(), 0, 1) == '#' && substr($route->getPattern(), -1) == '#') {
                     if (preg_match($route->getPattern(), $pathname, $match)) {
                         $params[':capture'] = array_slice($match, 1);
-                        $found              = $route;
+                        $found = $route;
                         break;
                     }
                 }
@@ -281,7 +281,7 @@ class Router implements RouterInterface
                     $pattern = '#^' . str_replace('\\*', '(.*)', preg_quote($route->getPattern(), '#')) . '#';
                     if (preg_match($pattern, $pathname, $match)) {
                         $params[':arg'] = array_slice($match, 1);
-                        $found          = $route;
+                        $found = $route;
                         break;
                     }
                 }

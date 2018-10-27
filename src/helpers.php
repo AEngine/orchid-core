@@ -296,9 +296,9 @@ if (!function_exists('array_get')) {
     /**
      * Get an item from an array using "dot" notation.
      *
-     * @param \ArrayAccess|array $array
-     * @param string             $key
-     * @param mixed              $default
+     * @param ArrayAccess|array $array
+     * @param string            $key
+     * @param mixed             $default
      *
      * @return mixed
      */
@@ -312,8 +312,8 @@ if (!function_exists('array_has')) {
     /**
      * Check if an item or items exist in an array using "dot" notation.
      *
-     * @param \ArrayAccess|array $array
-     * @param string|array       $keys
+     * @param ArrayAccess|array $array
+     * @param string|array      $keys
      *
      * @return bool
      */

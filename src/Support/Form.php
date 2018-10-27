@@ -85,18 +85,6 @@ class Form
     }
 
     /**
-     * @param string $name
-     * @param array  $option
-     * @param array  $data
-     *
-     * @return string
-     */
-    public static function select($name, array $option = [], array $data = [])
-    {
-        return static::render(array_merge($data, ['name' => $name, 'type' => 'select', 'option' => $option]));
-    }
-
-    /**
      * @param array $data
      *
      * @return string
@@ -294,6 +282,18 @@ class Form
         }
 
         return implode(' ', $attr);
+    }
+
+    /**
+     * @param string $name
+     * @param array  $option
+     * @param array  $data
+     *
+     * @return string
+     */
+    public static function select($name, array $option = [], array $data = [])
+    {
+        return static::render(array_merge($data, ['name' => $name, 'type' => 'select', 'option' => $option]));
     }
 }
 

@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 namespace AEngine\Orchid;
 
-use DirectoryIterator;
-use AEngine\Orchid\Message\Request;
-use AEngine\Orchid\Message\Response;
 use AEngine\Orchid\Exception\FileNotFoundException;
 use AEngine\Orchid\Handler\RenderError;
 use AEngine\Orchid\Handler\RenderLegacyError;
+use AEngine\Orchid\Message\Request;
+use AEngine\Orchid\Message\Response;
+use BadMethodCallException;
+use DirectoryIterator;
+use InvalidArgumentException;
 use Psr\Container\ContainerInterface;
 use Psr\Http\Message\ResponseInterface;
-use BadMethodCallException;
-use InvalidArgumentException;
 use RuntimeException;
 use Throwable;
 
@@ -75,41 +75,80 @@ class App
     }
 
     /**
-     * Return App instance
+     * Send the response the client
      *
-     * @param array $config
-     *
-     * @return App
+     * @param ResponseInterface $response
      */
-    public static function getInstance(array $config = [])
+    public function respond(ResponseInterface $response)
     {
-        static $instance;
-
-        if (!$instance) {
-            $instance = new App($config);
+        // Send response
+        if (!headers_sent()) {
+            // Status
+            header(sprintf(
+                'HTTP/%s %s %s',
+                $response->getProtocolVersion(),
+                $response->getStatusCode(),
+                $response->getReasonPhrase()
+            ));
+            // Headers
+            foreach ($response->getHeaders() as $name => $values) {
+                foreach ($values as $value) {
+                    header(sprintf('%s: %s', $name, $value), false);
+                }
+            }
         }
 
-        return $instance;
+        // Body
+        if (!$this->isEmptyResponse($response)) {
+            $body = $response->getBody();
+            if ($body->isSeekable()) {
+                $body->rewind();
+            }
+            $chunkSize = $this->container->get('settings')['responseChunkSize'];
+            $contentLength = $response->getHeaderLine('Content-Length');
+            if (!$contentLength) {
+                $contentLength = $body->getSize();
+            }
+            if (isset($contentLength)) {
+                $amountToRead = $contentLength;
+                while ($amountToRead > 0 && !$body->eof()) {
+                    $data = $body->read(min($chunkSize, $amountToRead));
+                    echo $data;
+
+                    $amountToRead -= strlen($data);
+
+                    if (connection_status() != CONNECTION_NORMAL) {
+                        break;
+                    }
+                }
+            } else {
+                while (!$body->eof()) {
+                    echo $body->read($chunkSize);
+                    if (connection_status() != CONNECTION_NORMAL) {
+                        break;
+                    }
+                }
+            }
+        }
     }
 
     /**
-     * Return internal container storage
+     * Helper method, which returns true if the provided response must not output a body and false
+     * if the response could have a body.
      *
-     * @return Container
-     */
-    public function &getContainer()
-    {
-        return $this->container;
-    }
-
-    /**
-     * Return debug flag
+     * @see https://tools.ietf.org/html/rfc7231
+     *
+     * @param ResponseInterface $response
      *
      * @return bool
      */
-    public function isDebug()
+    protected function isEmptyResponse(ResponseInterface $response)
     {
-        return $this->get('debug', true);
+        if (method_exists($response, 'isEmpty')) {
+            return $response->isEmpty();
+        }
+
+        return in_array($response->getStatusCode(), [204, 205, 304]);
     }
 
     /**
@@ -130,48 +169,31 @@ class App
     }
 
     /**
-     * Add value for name (not necessary) in array with key
-     * <code>
-     * $app->add('array', 'bar'); // add index with value 'bar'
-     * $app->add('array', 'foo', 'bar'); // add key 'foo' with value 'bar'
-     * </code>
+     * Return App instance
      *
-     * @param string $key
-     * @param array  $element
+     * @param array $config
      *
      * @return App
      */
-    public function add($key, ...$element)
+    public static function getInstance(array $config = [])
     {
-        $buf = (array)$this->get($key, []);
+        static $instance;
 
-        switch (count($element)) {
-            case 1:
-                $buf[] = $element[0];
-                break;
-            case 2:
-                $buf[$element[0]] = $element[1];
-                break;
+        if (!$instance) {
+            $instance = new App($config);
         }
 
-        $this->set($key, $buf);
-
-        return $this;
+        return $instance;
     }
 
     /**
-     * Set value for key
+     * Return debug flag
      *
-     * @param string $key
-     * @param mixed  $value
-     *
-     * @return App
+     * @return bool
      */
-    public function set($key, $value)
+    public function isDebug()
     {
-        $this->container->set($key, $value);
-
-        return $this;
+        return $this->get('debug', true);
     }
 
     /**
@@ -201,6 +223,21 @@ class App
         }
 
         throw new RuntimeException('Application "' . $name . '" not found in "app.list"');
+    }
+
+    /**
+     * Set value for key
+     *
+     * @param string $key
+     * @param mixed  $value
+     *
+     * @return App
+     */
+    public function set($key, $value)
+    {
+        $this->container->set($key, $value);
+
+        return $this;
     }
 
     /**
@@ -258,6 +295,36 @@ class App
                 }
             }
         }
+
+        return $this;
+    }
+
+    /**
+     * Add value for name (not necessary) in array with key
+     * <code>
+     * $app->add('array', 'bar'); // add index with value 'bar'
+     * $app->add('array', 'foo', 'bar'); // add key 'foo' with value 'bar'
+     * </code>
+     *
+     * @param string $key
+     * @param array  $element
+     *
+     * @return App
+     */
+    public function add($key, ...$element)
+    {
+        $buf = (array)$this->get($key, []);
+
+        switch (count($element)) {
+            case 1:
+                $buf[] = $element[0];
+                break;
+            case 2:
+                $buf[$element[0]] = $element[1];
+                break;
+        }
+
+        $this->set($key, $buf);
 
         return $this;
     }
@@ -459,88 +526,11 @@ class App
     }
 
     /**
-     * Send the response the client
-     *
-     * @param ResponseInterface $response
-     */
-    public function respond(ResponseInterface $response)
-    {
-        // Send response
-        if (!headers_sent()) {
-            // Status
-            header(sprintf(
-                'HTTP/%s %s %s',
-                $response->getProtocolVersion(),
-                $response->getStatusCode(),
-                $response->getReasonPhrase()
-            ));
-            // Headers
-            foreach ($response->getHeaders() as $name => $values) {
-                foreach ($values as $value) {
-                    header(sprintf('%s: %s', $name, $value), false);
-                }
-            }
-        }
-
-        // Body
-        if (!$this->isEmptyResponse($response)) {
-            $body = $response->getBody();
-            if ($body->isSeekable()) {
-                $body->rewind();
-            }
-            $chunkSize = $this->container->get('settings')['responseChunkSize'];
-            $contentLength = $response->getHeaderLine('Content-Length');
-            if (!$contentLength) {
-                $contentLength = $body->getSize();
-            }
-            if (isset($contentLength)) {
-                $amountToRead = $contentLength;
-                while ($amountToRead > 0 && !$body->eof()) {
-                    $data = $body->read(min($chunkSize, $amountToRead));
-                    echo $data;
-
-                    $amountToRead -= strlen($data);
-
-                    if (connection_status() != CONNECTION_NORMAL) {
-                        break;
-                    }
-                }
-            } else {
-                while (!$body->eof()) {
-                    echo $body->read($chunkSize);
-                    if (connection_status() != CONNECTION_NORMAL) {
-                        break;
-                    }
-                }
-            }
-        }
-    }
-
-    /**
-     * Helper method, which returns true if the provided response must not output a body and false
-     * if the response could have a body.
-     *
-     * @see https://tools.ietf.org/html/rfc7231
-     *
-     * @param ResponseInterface $response
-     *
-     * @return bool
-     */
-    protected function isEmptyResponse(ResponseInterface $response)
-    {
-        if (method_exists($response, 'isEmpty')) {
-            return $response->isEmpty();
-        }
-
-        return in_array($response->getStatusCode(), [204, 205, 304]);
-    }
-
-    /**
      * Calling a non-existant method on App checks to see if there's an item
      * in the container that is callable and if so, calls it.
      *
-     * @param  string $method
-     * @param  array  $args
+     * @param string $method
+     * @param array  $args
      *
      * @return mixed
      */
@@ -557,6 +547,16 @@ class App
         }
 
         throw new BadMethodCallException("Method $method is not a valid method");
+    }
+
+    /**
+     * Return internal container storage
+     *
+     * @return Container
+     */
+    public function &getContainer()
+    {
+        return $this->container;
     }
 
     protected function __clone()

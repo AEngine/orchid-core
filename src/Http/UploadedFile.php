@@ -2,9 +2,9 @@
 
 namespace AEngine\Orchid\Http;
 
+use InvalidArgumentException;
 use Psr\Http\Message\StreamInterface;
 use Psr\Http\Message\UploadedFileInterface;
-use InvalidArgumentException;
 use RuntimeException;
 
 /**
@@ -74,6 +74,26 @@ class UploadedFile implements UploadedFileInterface
     protected $moved = false;
 
     /**
+     * Construct a new UploadedFile instance.
+     *
+     * @param string      $file  The full path to the uploaded file provided by the client.
+     * @param string|null $name  The file name.
+     * @param string|null $type  The file media type.
+     * @param int|null    $size  The file size in bytes.
+     * @param int         $error The UPLOAD_ERR_XXX code representing the status of the upload.
+     * @param bool        $sapi  Indicates if the upload is in a SAPI environment.
+     */
+    public function __construct($file, $name = null, $type = null, $size = null, $error = UPLOAD_ERR_OK, $sapi = false)
+    {
+        $this->file = $file;
+        $this->name = $name;
+        $this->type = $type;
+        $this->size = $size;
+        $this->error = $error;
+        $this->sapi = $sapi;
+    }
+
+    /**
      * Create a normalized tree of UploadedFile instances from the Environment.
      *
      * @param array $globals The global server variables.
@@ -86,7 +106,7 @@ class UploadedFile implements UploadedFileInterface
 
         if ($env->has('orchid.files') && is_array($env['orchid.files'])) {
             return $env['orchid.files'];
-        } elseif (isset($_FILES)) {
+        } else if (isset($_FILES)) {
             return static::parseUploadedFiles($_FILES);
         }
 
@@ -137,26 +157,6 @@ class UploadedFile implements UploadedFileInterface
         }
 
         return $parsed;
-    }
-
-    /**
-     * Construct a new UploadedFile instance.
-     *
-     * @param string      $file The full path to the uploaded file provided by the client.
-     * @param string|null $name The file name.
-     * @param string|null $type The file media type.
-     * @param int|null    $size The file size in bytes.
-     * @param int         $error The UPLOAD_ERR_XXX code representing the status of the upload.
-     * @param bool        $sapi Indicates if the upload is in a SAPI environment.
-     */
-    public function __construct($file, $name = null, $type = null, $size = null, $error = UPLOAD_ERR_OK, $sapi = false)
-    {
-        $this->file = $file;
-        $this->name = $name;
-        $this->type = $type;
-        $this->size = $size;
-        $this->error = $error;
-        $this->sapi = $sapi;
     }
 
     /**
@@ -239,7 +239,7 @@ class UploadedFile implements UploadedFileInterface
             if (!unlink($this->file)) {
                 throw new RuntimeException(sprintf('Error removing uploaded file %1s', $this->name));
             }
-        } elseif ($this->sapi) {
+        } else if ($this->sapi) {
             if (!is_uploaded_file($this->file)) {
                 throw new RuntimeException(sprintf('%1s is not a valid uploaded file', $this->file));
             }

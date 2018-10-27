@@ -23,7 +23,7 @@ require_once 'vendor/autoload.php';
 $app = app();
 
 $app->router()->get('/hello/:name', function ($request, $response, $args) {
-    return $response->write("Hello, " . $args['name']);
+    return "Hello, " . $args['name'];
 });
 
 $app->run();
@@ -46,10 +46,6 @@ Work with Key-Value storage
 ##### Database
 Attach the database in the project by using a wrapper around the PDO
 > `composer require aengine/orchid-database`
-
-##### Misc
-Functional add-ons
-> `composer require aengine/orchid-misc`
 
 ##### Filter
 Validate incoming data

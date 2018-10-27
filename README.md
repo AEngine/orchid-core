@@ -20,7 +20,7 @@ Create an `index.php` file with the following contents:
 
 require_once 'vendor/autoload.php';
 
-$app = AEngine\Orchid\App::getInstance();
+$app = app();
 
 $app->router()->get('/hello/:name', function ($request, $response, $args) {
     return $response->write("Hello, " . $args['name']);

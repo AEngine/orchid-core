@@ -17,8 +17,7 @@ class RenderError extends AbstractError
      */
     public static function render(Throwable $error)
     {
-        $app = App::getInstance();
-        $contentType = static::determineContentType($app->request()->getHeaderLine('Accept'));
+        $contentType = static::determineContentType(app()->request()->getHeaderLine('Accept'));
 
         switch ($contentType) {
             case 'application/json':
@@ -54,7 +53,7 @@ class RenderError extends AbstractError
             'message' => 'Application Error',
         ];
 
-        if (App::getInstance()->isDebug()) {
+        if (app()->isDebug()) {
             $json['error'] = [];
 
             do {
@@ -82,7 +81,7 @@ class RenderError extends AbstractError
     protected static function renderHtmlMessage(Throwable $error){
         $title = 'Application Error';
 
-        if (App::getInstance()->isDebug()) {
+        if (app()->isDebug()) {
             $html = '<p>The application could not run because of the following error:</p>';
             $html .= '<h2>Details</h2>';
             $html .= static::renderHtmlError($error);

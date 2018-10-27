@@ -447,6 +447,7 @@ if (!function_exists('user_session_create')) {
         Session::create($name);
     }
 }
+
 if (!function_exists('user_session_set')) {
     /**
      * Writes the data in the current session
@@ -459,6 +460,7 @@ if (!function_exists('user_session_set')) {
         Session::set($key, $value);
     }
 }
+
 if (!function_exists('user_session_get')) {
     /**
      * Return data from the current session of the given key
@@ -473,6 +475,7 @@ if (!function_exists('user_session_get')) {
         return Session::get($key, $default);
     }
 }
+
 if (!function_exists('user_session_remove')) {
     /**
      * Removes data from the current session of the given key
@@ -484,6 +487,7 @@ if (!function_exists('user_session_remove')) {
         Session::remove($key);
     }
 }
+
 if (!function_exists('user_session_destroy')) {
     /**
      * Destroys the current session

@@ -41,9 +41,14 @@ class App
      */
     protected function __construct($container = [])
     {
+        if (ob_get_level() === 0) {
+            ob_start();
+            ob_implicit_flush(0);
+        }
+
         if (PHP_SAPI != 'cli') {
             set_exception_handler(function (Throwable $ex) {
-                if (ob_get_length()) {
+                if (ob_get_level() !== 0) {
                     ob_end_clean();
                 }
 
@@ -497,8 +502,6 @@ class App
      */
     public function run($silent = false)
     {
-        ob_start();
-        ob_implicit_flush(0);
         ini_set('default_mimetype', '');
 
         $request = $this->request();
@@ -515,7 +518,9 @@ class App
 
         // if error
         if (($error = error_get_last()) && error_reporting() & $error['type']) {
-            ob_end_clean();
+            if (ob_get_level() !== 0) {
+                ob_end_clean();
+            }
 
             $response = RenderLegacyError::render($error);
         }

@@ -1,9 +1,8 @@
 <?php
 
-namespace AEngine\Orchid\Annotations\Annotated;
+namespace AEngine\Orchid;
 
-use AEngine\Orchid\Annotations\AnnotationReader;
-use AEngine\Orchid\Annotations\Interfaces\AnnotatedInterface;
+use AEngine\Orchid\Interfaces\AnnotatedInterface;
 use ReflectionException;
 use ReflectionProperty;
 

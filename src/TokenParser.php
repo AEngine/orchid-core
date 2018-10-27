@@ -1,6 +1,6 @@
 <?php
 
-namespace AEngine\Orchid\Annotations\Helper;
+namespace AEngine\Orchid;
 
 /**
  * Parses a file for namespaces/use/class declarations.

@@ -1,8 +1,8 @@
 <?php
 
-namespace AEngine\Orchid\Annotations;
+namespace AEngine\Orchid;
 
-use AEngine\Orchid\Annotations\Interfaces\AnnotationInterface;
+use AEngine\Orchid\Interfaces\AnnotationInterface;
 use BadMethodCallException;
 
 abstract class Annotation implements AnnotationInterface

@@ -154,7 +154,7 @@ class Request extends Message implements ServerRequestInterface
         $this->headers = $headers;
         $this->cookies = $cookies;
         $this->serverParams = $serverParams;
-        $this->attributes = new Collection();
+        $this->attributes = collect();
         $this->body = $body;
         $this->uploadedFiles = $uploadedFiles;
 
@@ -891,7 +891,7 @@ class Request extends Message implements ServerRequestInterface
     public function withAttributes(array $attributes)
     {
         $clone = clone $this;
-        $clone->attributes = new Collection($attributes);
+        $clone->attributes = collect($attributes);
 
         return $clone;
     }

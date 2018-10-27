@@ -152,7 +152,7 @@ class Uri implements UriInterface
      */
     public static function createFromGlobals(array $globals)
     {
-        $env = new Collection($globals);
+        $env = collect($globals);
 
         // Scheme
         $isSecure = $env->get('HTTPS');

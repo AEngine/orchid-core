@@ -82,7 +82,7 @@ class UploadedFile implements UploadedFileInterface
      */
     public static function createFromGlobals(array $globals)
     {
-        $env = new Collection($globals);
+        $env = collect($globals);
 
         if (is_array($env['orchid.files']) && $env->has('orchid.files')) {
             return $env['orchid.files'];

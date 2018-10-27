@@ -2,7 +2,9 @@
 
 use AEngine\Orchid\App;
 use AEngine\Orchid\Collection;
+use AEngine\Orchid\Exception\FileNotFoundException;
 use AEngine\Orchid\Support\Arr;
+use AEngine\Orchid\Support\Asset;
 use AEngine\Orchid\Support\Crypta;
 use AEngine\Orchid\Support\i18n;
 use AEngine\Orchid\Support\Session;
@@ -35,6 +37,20 @@ if (!function_exists('pre')) {
             var_dump($obj);
         }
         echo '</pre>';
+    }
+}
+
+if (!function_exists('value')) {
+    /**
+     * Return the default value of the given value.
+     *
+     * @param mixed $value
+     *
+     * @return mixed
+     */
+    function value($value)
+    {
+        return $value instanceof Closure ? $value() : $value;
     }
 }
 
@@ -96,6 +112,7 @@ if (!function_exists('data_get')) {
         return $target;
     }
 }
+
 if (!function_exists('data_set')) {
     /**
      * Set an item on an array or object using dot notation.
@@ -155,17 +172,28 @@ if (!function_exists('data_set')) {
     }
 }
 
-if (!function_exists('value')) {
+if (!function_exists('asset_resource')) {
     /**
-     * Return the default value of the given value.
+     * Generates resource string based on the resources map
      *
-     * @param mixed $value
-     *
-     * @return mixed
+     * @return null|string
      */
-    function value($value)
+    function asset_resource()
     {
-        return $value instanceof Closure ? $value() : $value;
+        return Asset::resource();
+    }
+}
+
+if (!function_exists('asset_template')) {
+    /**
+     * Collect all of the templates from folder 'template' and of all loaded modules
+     *
+     * @return string
+     * @throws FileNotFoundException
+     */
+    function asset_template()
+    {
+        return Asset::template();
     }
 }
 

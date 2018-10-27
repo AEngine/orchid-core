@@ -25,13 +25,6 @@ use Throwable;
 class App
 {
     /**
-     * Instance of class App
-     *
-     * @var App
-     */
-    protected static $instance;
-
-    /**
      * @var Container
      */
     protected $container;
@@ -90,11 +83,13 @@ class App
      */
     public static function getInstance(array $config = [])
     {
-        if (!static::$instance) {
-            static::$instance = new App($config);
+        static $instance;
+
+        if (!$instance) {
+            $instance = new App($config);
         }
 
-        return static::$instance;
+        return $instance;
     }
 
     /**

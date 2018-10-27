@@ -4,10 +4,10 @@ namespace AEngine\Orchid;
 
 use AEngine\Orchid\Exception\ContainerException;
 use AEngine\Orchid\Exception\NotFoundException;
-use AEngine\Orchid\Message\Environment;
-use AEngine\Orchid\Message\Headers;
-use AEngine\Orchid\Message\Request;
-use AEngine\Orchid\Message\Response;
+use AEngine\Orchid\Http\Environment;
+use AEngine\Orchid\Http\Headers;
+use AEngine\Orchid\Http\Request;
+use AEngine\Orchid\Http\Response;
 use Pimple\Container as PimpleContainer;
 use Pimple\Exception\FrozenServiceException;
 use Psr\Container\ContainerExceptionInterface;

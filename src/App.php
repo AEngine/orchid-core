@@ -43,7 +43,9 @@ class App
     {
         if (PHP_SAPI != 'cli') {
             set_exception_handler(function (Throwable $ex) {
-                ob_end_clean();
+                if (ob_get_length()) {
+                    ob_end_clean();
+                }
 
                 $this->respond(RenderError::render($ex));
             });

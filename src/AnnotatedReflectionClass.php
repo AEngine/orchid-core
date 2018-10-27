@@ -128,7 +128,7 @@ class AnnotatedReflectionClass extends ReflectionClass implements AnnotatedInter
             $methods = parent::getMethods();
             $this->methods = [];
             foreach ($methods as $method) {
-                $this->methods[$method->getName()] = new ReflectionMethod($this->getName(), $method->getName());
+                $this->methods[$method->getName()] = new AnnotatedReflectionMethod($this->getName(), $method->getName());
             }
         }
 
@@ -177,7 +177,7 @@ class AnnotatedReflectionClass extends ReflectionClass implements AnnotatedInter
             $properties = parent::getProperties();
             $this->properties = [];
             foreach ($properties as $property) {
-                $this->properties[$property->getName()] = new ReflectionProperty($this->getName(), $property->getName());
+                $this->properties[$property->getName()] = new AnnotatedReflectionProperty($this->getName(), $property->getName());
             }
         }
 

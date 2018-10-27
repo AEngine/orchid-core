@@ -33,7 +33,7 @@ class RenderLegacyError extends AbstractError
         $body = new Body(fopen('php://temp', 'r+'));
         $body->write($output);
 
-        return $app->response()
+        return app()->response()
             ->withStatus(500)
             ->withHeader('Content-type', $contentType)
             ->withBody($body);

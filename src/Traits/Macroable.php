@@ -5,6 +5,7 @@ namespace AEngine\Orchid\Traits;
 use BadMethodCallException;
 use Closure;
 use ReflectionClass;
+use ReflectionException;
 use ReflectionMethod;
 
 trait Macroable

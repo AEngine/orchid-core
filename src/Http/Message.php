@@ -52,6 +52,9 @@ abstract class Message implements MessageInterface
 
     /**
      * Disable magic setter to ensure immutability
+     *
+     * @param $name
+     * @param $value
      */
     public function __set($name, $value)
     {

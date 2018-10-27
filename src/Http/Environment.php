@@ -15,7 +15,7 @@ class Environment
      *
      * @param array $userData Array of custom environment keys and values
      *
-     * @return self
+     * @return array
      */
     public static function mock(array $userData = [])
     {

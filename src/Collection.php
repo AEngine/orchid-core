@@ -2,8 +2,10 @@
 
 namespace AEngine\Orchid;
 
+use AEngine\Orchid\Interfaces\CollectionInterface;
 use AEngine\Orchid\Support\Arr;
 use AEngine\Orchid\Traits\Macroable;
+use ArrayIterator;
 use Closure;
 use Exception;
 use InvalidArgumentException;
@@ -34,9 +36,29 @@ use Traversable;
  *
  * Class Collection
  */
-class Collection extends CollectionBase
+class Collection implements CollectionInterface
 {
     use Macroable;
+
+    /**
+     * Full path of the model class
+     *
+     * @var string
+     */
+    protected static $model;
+
+    /**
+     * Internal storage of models
+     *
+     * @var array
+     */
+    protected $items = [];
+    /**
+     * Iterator position
+     *
+     * @var int
+     */
+    protected $position = 0;
 
     /**
      * The methods that can be proxied.
@@ -48,6 +70,81 @@ class Collection extends CollectionBase
         'flatMap', 'groupBy', 'keyBy', 'map', 'max', 'min', 'partition',
         'reject', 'sortBy', 'sortByDesc', 'sum', 'unique',
     ];
+
+    /**
+     * Create a new collection.
+     *
+     * @param mixed $items
+     *
+     * @return void
+     */
+    final public function __construct($items = [])
+    {
+        $this->replace($this->getArrayByItems($items));
+    }
+
+    /**
+     * Get all items in collection
+     *
+     * @return array The collection's source data
+     */
+    public function all()
+    {
+        return $this->items;
+    }
+
+    /**
+     * Add item to collection, replacing existing items with the same data key
+     *
+     * @param array $items Key-value array of data to append to this collection
+     *
+     * @return $this
+     */
+    public function replace(array $items)
+    {
+        foreach ($items as $key => $value) {
+            $this->set($key, $value);
+        }
+
+        return $this;
+    }
+
+    /**
+     * Set value of the element
+     *
+     * @param int         $key
+     * @param Model|array $value
+     *
+     * @return $this
+     */
+    public function set($key, $value)
+    {
+        return $this->offsetSet($key, $value);
+    }
+
+    /**
+     * Remove item from collection
+     *
+     * @param string $key The data key
+     *
+     * @return $this
+     */
+    public function remove($key)
+    {
+        return $this->offsetUnset($key);
+    }
+
+    /**
+     * Remove all items from collection
+     *
+     * @return $this
+     */
+    public function clear()
+    {
+        $this->items = [];
+
+        return $this;
+    }
 
     /**
      * Create a new collection instance if the value isn't one already.
@@ -541,7 +638,7 @@ class Collection extends CollectionBase
      */
     public function diff($items)
     {
-        return new static(array_diff($this->items, static::getArrayByItems($items)));
+        return new static(array_diff($this->items, $this->getArrayByItems($items)));
     }
 
     /**
@@ -554,7 +651,7 @@ class Collection extends CollectionBase
      */
     public function diffUsing($items, callable $callback)
     {
-        return new static(array_udiff($this->items, static::getArrayByItems($items), $callback));
+        return new static(array_udiff($this->items, $this->getArrayByItems($items), $callback));
     }
 
     /**
@@ -566,7 +663,7 @@ class Collection extends CollectionBase
      */
     public function diffAssoc($items)
     {
-        return new static(array_diff_assoc($this->items, static::getArrayByItems($items)));
+        return new static(array_diff_assoc($this->items, $this->getArrayByItems($items)));
     }
 
     /**
@@ -579,7 +676,7 @@ class Collection extends CollectionBase
      */
     public function diffAssocUsing($items, callable $callback)
     {
-        return new static(array_diff_uassoc($this->items, static::getArrayByItems($items), $callback));
+        return new static(array_diff_uassoc($this->items, $this->getArrayByItems($items), $callback));
     }
 
     /**
@@ -591,7 +688,7 @@ class Collection extends CollectionBase
      */
     public function diffKeys($items)
     {
-        return new static(array_diff_key($this->items, static::getArrayByItems($items)));
+        return new static(array_diff_key($this->items, $this->getArrayByItems($items)));
     }
 
     /**
@@ -604,7 +701,7 @@ class Collection extends CollectionBase
      */
     public function diffKeysUsing($items, callable $callback)
     {
-        return new static(array_diff_ukey($this->items, static::getArrayByItems($items), $callback));
+        return new static(array_diff_ukey($this->items, $this->getArrayByItems($items), $callback));
     }
 
     /**
@@ -718,7 +815,7 @@ class Collection extends CollectionBase
      */
     public function whereIn($key, $values, $strict = false)
     {
-        $values = static::getArrayByItems($values);
+        $values = $this->getArrayByItems($values);
 
         return $this->filter(function ($item) use ($key, $values, $strict) {
             return in_array(data_get($item, $key), $values, $strict);
@@ -749,7 +846,7 @@ class Collection extends CollectionBase
      */
     public function whereNotIn($key, $values, $strict = false)
     {
-        $values = static::getArrayByItems($values);
+        $values = $this->getArrayByItems($values);
 
         return $this->reject(function ($item) use ($key, $values, $strict) {
             return in_array(data_get($item, $key), $values, $strict);
@@ -983,7 +1080,7 @@ class Collection extends CollectionBase
      */
     public function intersect($items)
     {
-        return new static(array_intersect($this->items, static::getArrayByItems($items)));
+        return new static(array_intersect($this->items, $this->getArrayByItems($items)));
     }
 
     /**
@@ -996,7 +1093,7 @@ class Collection extends CollectionBase
     public function intersectByKeys($items)
     {
         return new static(array_intersect_key(
-            $this->items, static::getArrayByItems($items)
+            $this->items, $this->getArrayByItems($items)
         ));
     }
 
@@ -1206,7 +1303,7 @@ class Collection extends CollectionBase
      */
     public function merge($items)
     {
-        return new static(array_merge($this->items, static::getArrayByItems($items)));
+        return new static(array_merge($this->items, $this->getArrayByItems($items)));
     }
 
     /**
@@ -1218,7 +1315,7 @@ class Collection extends CollectionBase
      */
     public function combine($values)
     {
-        return new static(array_combine($this->all(), static::getArrayByItems($values)));
+        return new static(array_combine($this->all(), $this->getArrayByItems($values)));
     }
 
     /**
@@ -1230,7 +1327,7 @@ class Collection extends CollectionBase
      */
     public function union($items)
     {
-        return new static($this->items + static::getArrayByItems($items));
+        return new static($this->items + $this->getArrayByItems($items));
     }
 
     /**
@@ -1719,7 +1816,7 @@ class Collection extends CollectionBase
     {
         $arrayableItems = array_map(
             function ($items) {
-                return static::getArrayByItems($items);
+                return $this->getArrayByItems($items);
             },
             func_get_args()
         );
@@ -1750,31 +1847,196 @@ class Collection extends CollectionBase
     }
 
     /**
-     * Dynamically access collection proxies.
-     *
-     * @param string $key
+     * Returns current element of the array
      *
      * @return mixed
-     *
-     * @throws Exception
      */
-    public function __get($key)
+    public function current()
     {
-        if (!in_array($key, static::$proxies)) {
-            throw new Exception("Property [{$key}] does not exist on this collection instance.");
+        $buf = $this->items[$this->key()];
+
+        if (static::$model) {
+            return new static::$model($buf);
         }
 
-        return new CollectionHigherOrderProxy($this, $key);
+        return $buf;
     }
 
     /**
-     * Convert the collection to its string representation.
+     * Returns current element key
      *
-     * @return string
+     * @return int
      */
-    public function __toString()
+    public function key()
     {
-        return $this->toJson();
+        $bufKeys = array_keys($this->items);
+
+        if ($bufKeys && isset($bufKeys[$this->position])) {
+            return $bufKeys[$this->position];
+        }
+
+        return false;
+    }
+
+    /**
+     * Move forward to next element
+     *
+     * @return $this
+     */
+    public function next()
+    {
+        $this->position++;
+
+        return $this;
+    }
+
+    /**
+     * Move forward to previously element
+     *
+     * @return $this
+     */
+    public function prev()
+    {
+        $this->position--;
+
+        return $this;
+    }
+
+    /**
+     * Check current position of the iterator
+     *
+     * @return bool
+     */
+    public function valid()
+    {
+        return $this->key() !== false && isset($this->items[$this->key()]);
+    }
+
+    /**
+     * Set iterator to the first element
+     *
+     * @return $this
+     */
+    public function rewind()
+    {
+        $this->position = 0;
+
+        return $this;
+    }
+
+    /**
+     * Returns number of elements of the object
+     *
+     * @return int
+     */
+    public function count()
+    {
+        return count($this->items);
+    }
+
+    /**
+     * Get collection iterator
+     *
+     * @return ArrayIterator
+     */
+    public function getIterator()
+    {
+        return new ArrayIterator($this->items);
+    }
+
+    /**
+     * Does this collection have a given key?
+     *
+     * @param string $key The data key
+     *
+     * @return bool
+     */
+    public function offsetExists($key)
+    {
+        return array_key_exists($key, $this->items);
+    }
+
+    /**
+     * Get collection item for key
+     *
+     * @param string $key The data key
+     *
+     * @return mixed The key's value, or the default value
+     */
+    public function offsetGet($key)
+    {
+        if (static::$model) {
+            return new static::$model($this->items[$key]);
+        }
+
+        return $this->items[$key];
+    }
+
+    /**
+     * Set collection item
+     *
+     * @param string $key   The data key
+     * @param mixed  $value The data value
+     *
+     * @return $this
+     */
+    public function offsetSet($key, $value)
+    {
+        if (is_null($key)) {
+            if ($value instanceof Model) {
+                $this->items[] = $value->toArray();
+            } else {
+                $this->items[] = $value;
+            }
+        } else {
+            if ($value instanceof Model) {
+                $this->items[$key] = $value->toArray();
+            } else {
+                $this->items[$key] = $value;
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * Remove item from collection
+     *
+     * @param string $key The data key
+     *
+     * @return $this
+     */
+    public function offsetUnset($key)
+    {
+        unset($this->items[$key]);
+
+        return $this;
+    }
+
+    /**
+     * Results array of items from Collection or Array.
+     *
+     * @param mixed $items
+     *
+     * @return array
+     */
+    protected function getArrayByItems($items)
+    {
+        switch (true) {
+            case is_array($items):
+                return $items;
+
+            case $items instanceof self:
+                return $items->all();
+
+            case $items instanceof JsonSerializable:
+                return $items->jsonSerialize();
+
+            case $items instanceof Traversable:
+                return iterator_to_array($items);
+        }
+
+        return (array)$items;
     }
 
     /**
@@ -1803,5 +2065,33 @@ class Collection extends CollectionBase
 
             return $value;
         }, $this->items);
+    }
+
+    /**
+     * Dynamically access collection proxies.
+     *
+     * @param string $key
+     *
+     * @return mixed
+     *
+     * @throws Exception
+     */
+    public function __get($key)
+    {
+        if (!in_array($key, static::$proxies)) {
+            throw new Exception("Property [{$key}] does not exist on this collection instance.");
+        }
+
+        return new CollectionHigherOrderProxy($this, $key);
+    }
+
+    /**
+     * Convert the collection to its string representation.
+     *
+     * @return string
+     */
+    public function __toString()
+    {
+        return $this->toJson();
     }
 }

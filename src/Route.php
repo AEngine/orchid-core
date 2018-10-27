@@ -4,7 +4,7 @@ namespace AEngine\Orchid;
 
 use AEngine\Orchid\Exception\NoSuchMethodException;
 use AEngine\Orchid\Interfaces\RouteInterface;
-use AEngine\Orchid\Message\Body;
+use AEngine\Orchid\Http\Body;
 use Closure;
 use InvalidArgumentException;
 use Psr\Http\Message\ResponseInterface;

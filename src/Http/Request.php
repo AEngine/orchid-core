@@ -2,6 +2,7 @@
 
 namespace AEngine\Orchid\Http;
 
+use AEngine\Orchid\Collection;
 use AEngine\Orchid\Interfaces\HeadersInterface;
 use Closure;
 use Psr\Http\Message\UploadedFileInterface;
@@ -69,7 +70,7 @@ class Request extends Message implements ServerRequestInterface
     /**
      * The request attributes (route segment names and values)
      *
-     * @var \AEngine\Orchid\Message\Collection
+     * @var Collection
      */
     protected $attributes;
 

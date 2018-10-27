@@ -14,8 +14,8 @@ use InvalidArgumentException;
  * the HTTP request and response, as defined in the PSR-7 MessageInterface.
  *
  * @link https://github.com/php-fig/http-message/blob/master/src/MessageInterface.php
- * @see  \AEngine\Orchid\Message\Request
- * @see  \AEngine\Orchid\Message\Response
+ * @see  \AEngine\Orchid\Http\Request
+ * @see  \AEngine\Orchid\Http\Response
  */
 abstract class Message implements MessageInterface
 {

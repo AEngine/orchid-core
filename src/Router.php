@@ -59,6 +59,11 @@ class Router implements RouterInterface
      */
     public function map(array $methods, $pattern, $callable, $priority = 0): RouteInterface
     {
+        // add app in closure as scope
+        if ($callable instanceof Closure) {
+            $callable = $callable->bindTo(app());
+        }
+
         if (!is_string($pattern)) {
             throw new InvalidArgumentException('Route pattern must be a string');
         }

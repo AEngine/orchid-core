@@ -236,7 +236,7 @@ class Route implements RouteInterface
             ob_start();
 
             if (is_object($this->callable)) {
-                $result = call_user_func_array($this->callable, [$request, $response, $this->getArgument()]);
+                $result = call_user_func_array($this->callable, [$request, $response, $this->arguments]);
 
                 // if route callback returns a ResponseInterface, then use it
                 if ($result instanceof ResponseInterface) {
@@ -279,7 +279,7 @@ class Route implements RouteInterface
                         if (method_exists($callback, $val)) {
                             $result = call_user_func_array(
                                 [$callback, $val],
-                                [$request, $response, $this->getArgument()]
+                                [$request, $response, $this->arguments]
                             );
 
                             // if route callback returns a ResponseInterface, then use it

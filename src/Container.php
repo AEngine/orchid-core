@@ -4,15 +4,14 @@ namespace AEngine\Orchid;
 
 use AEngine\Orchid\Exception\ContainerException;
 use AEngine\Orchid\Exception\NotFoundException;
-use AEngine\Orchid\Http\Environment;
-use AEngine\Orchid\Http\Headers;
-use AEngine\Orchid\Http\Request;
-use AEngine\Orchid\Http\Response;
+use AEngine\Orchid\Provider\MessageProvider;
+use AEngine\Orchid\Provider\PathProvider;
 use Pimple\Container as PimpleContainer;
 use Pimple\Exception\FrozenServiceException;
 use Psr\Container\ContainerExceptionInterface;
 use Psr\Container\ContainerInterface;
 use Psr\Container\NotFoundExceptionInterface;
+use RuntimeException;
 
 class Container extends PimpleContainer implements ContainerInterface
 {
@@ -48,6 +47,11 @@ class Container extends PimpleContainer implements ContainerInterface
     {
         $values = array_replace_recursive(static::$defaultConfig, $values);
 
+        // cli mode
+        if (PHP_SAPI == 'cli') {
+            $values['args'] = array_slice($_SERVER['argv'], 1);
+        }
+
         // set base dir
         if (!$values['base.dir']) {
             if (!empty($_SERVER['DOCUMENT_ROOT'])) {
@@ -67,11 +71,6 @@ class Container extends PimpleContainer implements ContainerInterface
             $values['base.port'] = $_SERVER['SERVER_PORT'];
         }
 
-        // cli mode
-        if (PHP_SAPI == 'cli') {
-            $values['args'] = array_slice($_SERVER['argv'], 1);
-        }
-
         // todo remove in next version
         foreach ($values as $key => $value) {
             if (in_array($key, ['base_dir', 'base_host', 'base_port'])) {
@@ -86,64 +85,13 @@ class Container extends PimpleContainer implements ContainerInterface
 
         parent::__construct($values);
 
-        if (!isset($this['environment'])) {
-            /**
-             * This service MUST return array from Environment
-             *
-             * @return array
-             */
-            $this['environment'] = function () {
-                return Environment::mock($_SERVER);
-            };
-        }
+        // add Message ServiceProvider
+        $messageProvider = new MessageProvider();
+        $messageProvider->register($this);
 
-        if (!isset($this['request'])) {
-            /**
-             * PSR-7 Request object
-             *
-             * @param Container $container
-             *
-             * @return Request
-             */
-            $this['request'] = function ($container) {
-                return Request::createFromGlobals($container->get('environment'));
-            };
-        }
-
-        if (!isset($this['headers'])) {
-            /**
-             * PSR-7 Request object
-             *
-             * @return Headers
-             */
-            $this['headers'] = function () {
-                return new Headers(['Content-Type' => 'text/html; charset=UTF-8']);
-            };
-        }
-
-        if (!isset($this['response'])) {
-            /**
-             * PSR-7 Response object
-             *
-             * @param Container $container
-             *
-             * @return Response
-             */
-            $this['response'] = function ($container) {
-                $response = new Response(200, $container->get('headers'));
-
-                return $response->withProtocolVersion($container->get('settings')['httpVersion']);
-            };
-        }
-
-        if (!isset($this['router'])) {
-            /**
-             * @return Router
-             */
-            $this['router'] = function () {
-                return new Router();
-            };
-        }
+        // add Path ServiceProvider
+        $pathProvider = new PathProvider();
+        $pathProvider->register($this);
     }
 
     /**
@@ -195,22 +143,33 @@ class Container extends PimpleContainer implements ContainerInterface
     }
 
     /**
-     * @param $name
+     * Add value for name (not necessary) in array with key
+     * <code>
+     * $app->add('array', 'bar'); // add index with value 'bar'
+     * $app->add('array', 'foo', 'bar'); // add key 'foo' with value 'bar'
+     * </code>
      *
-     * @return mixed
-     * @throws ContainerExceptionInterface
-     * @throws NotFoundExceptionInterface
+     * @param string $id
+     * @param array  $element
+     *
+     * @return Container
      */
-    public function __get($name)
+    public function add($id, ...$element)
     {
-        return $this->get($name);
-    }
+        $buf = (array)$this->get($id);
 
-    // Magic methods
+        switch (count($element)) {
+            case 1:
+                $buf[] = $element[0];
+                break;
+            case 2:
+                $buf[$element[0]] = $element[1];
+                break;
+        }
 
-    public function __isset($name)
-    {
-        return $this->has($name);
+        $this->set($id, $buf);
+
+        return $this;
     }
 
     /**
@@ -226,5 +185,156 @@ class Container extends PimpleContainer implements ContainerInterface
     public function has($id)
     {
         return $this->offsetExists($id);
+    }
+
+    // Alias methods
+
+    /**
+     * Return CLI args
+     *
+     * @return array
+     */
+    public function getArgs()
+    {
+        if ($this['args']) {
+            return $this['args'];
+        }
+
+        return [];
+    }
+
+    /**
+     * Return debug flag
+     *
+     * @return bool
+     */
+    public function isDebug() {
+        return $this['debug'];
+    }
+
+    /**
+     * Return current app name
+     *
+     * @return string
+     */
+    public function getApp()
+    {
+        return $this['app.name'];
+    }
+
+    /**
+     * Set app name
+     *
+     * @param $name
+     *
+     * @return bool
+     * @throws RuntimeException
+     */
+    public function setApp($name)
+    {
+        if (in_array($name, $this['app.list'])) {
+            $this['app.name'] = $name;
+
+            return true;
+        }
+
+        throw new RuntimeException('Application "' . $name . '" not found in "app.list"');
+    }
+
+    /**
+     * Return secret word
+     *
+     * @return string
+     */
+    public function getSecret()
+    {
+        return $this['secret'];
+    }
+
+    /**
+     * Return base dir
+     *
+     * @return string
+     */
+    public function getBaseDir()
+    {
+        return $this['base.dir'];
+    }
+
+    /**
+     * Return base host name
+     *
+     * @return string
+     */
+    public function getBaseHost()
+    {
+        return $this['base.host'];
+    }
+
+    /**
+     * Return base port num
+     *
+     * @return int
+     */
+    public function getBasePort()
+    {
+        return (int)$this['base.port'];
+    }
+
+    /**
+     * Return array of loaded modules
+     *
+     * @return array
+     */
+    public function getModules()
+    {
+        return $this['module.list'];
+    }
+
+    /**
+     * Return settings value by key or array of settings
+     *
+     * @param string $key
+     *
+     * @return mixed
+     */
+    public function getSettings($id = null)
+    {
+        if (!is_null($id)) {
+            if (isset($this['settings'][$id])) {
+                return $this['settings'][$id];
+            }
+
+            throw new RuntimeException('Key "' . $id . '" not found in "settings"');
+        }
+
+        return $this['settings'];
+    }
+
+    /**
+     * Set settings by key
+     *
+     * @param string $key
+     * @param mixed $value
+     *
+     * @return bool
+     */
+    public function setSettings($id, $value)
+    {
+        $this['settings'][$id] = $value;
+
+        return true;
+    }
+
+    // Magic methods
+
+    public function __get($name)
+    {
+        return $this->get($name);
+    }
+
+    public function __isset($name)
+    {
+        return $this->has($name);
     }
 }

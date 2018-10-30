@@ -13,6 +13,11 @@ use Psr\Container\ContainerInterface;
 use Psr\Container\NotFoundExceptionInterface;
 use RuntimeException;
 
+/**
+ * Default Container
+ *
+ * @property-read Path $path
+ */
 class Container extends PimpleContainer implements ContainerInterface
 {
     /**

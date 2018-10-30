@@ -37,7 +37,7 @@ use Throwable;
  * @method mixed getSettings($id=null);
  * @method boolean setSettings($id, $value);
  *
- * @property Path $path
+ * @property-read Path $path
  */
 class App
 {

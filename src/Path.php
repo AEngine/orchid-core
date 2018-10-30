@@ -1,13 +1,6 @@
 <?php
-/**
- * Created by PhpStorm.
- * User: alksily
- * Date: 29/10/2018
- * Time: 18:00
- */
 
 namespace AEngine\Orchid;
-
 
 class Path
 {

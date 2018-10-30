@@ -31,11 +31,11 @@ class Path
     {
         $path = str_replace(DIRECTORY_SEPARATOR, '/', $path);
 
-        if (!isset($this->paths[$shortcut])) {
-            $this->paths[$shortcut] = [];
+        if (!isset($this->items[$shortcut])) {
+            $this->items[$shortcut] = [];
         }
 
-        array_unshift($this->paths[$shortcut], is_file($path) ? $path : $path . '/');
+        array_unshift($this->items[$shortcut], is_file($path) ? $path : $path . '/');
 
         return $this;
     }
@@ -54,8 +54,8 @@ class Path
         }
 
         if (($parts = explode(':', $path, 2)) && count($parts) == 2) {
-            if (isset($this->paths[$parts[0]])) {
-                foreach ($this->paths[$parts[0]] as &$path) {
+            if (isset($this->items[$parts[0]])) {
+                foreach ($this->items[$parts[0]] as &$path) {
                     if (file_exists($path . $parts[1])) {
                         return $path . $parts[1];
                     }
@@ -76,10 +76,10 @@ class Path
     public function list($shortcut)
     {
         if ($shortcut) {
-            return $this->paths[$shortcut] ?? [];
+            return $this->items[$shortcut] ?? [];
         }
 
-        return $this->paths;
+        return $this->items;
     }
 
     /**

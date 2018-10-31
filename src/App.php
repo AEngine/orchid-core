@@ -259,7 +259,7 @@ class App
         $route->setOutputBuffering($this->container->get('settings')['outputBuffering']);
 
         // call route
-        $route->callMiddlewareStack($request, $response);
+        $response = $route->callMiddlewareStack($request, $response);
 
         // if error
         if (($error = error_get_last()) && error_reporting() & $error['type']) {

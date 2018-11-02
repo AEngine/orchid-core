@@ -337,6 +337,10 @@ class Collection implements CollectionInterface
     public function get($key, $default = null)
     {
         if ($this->offsetExists($key)) {
+            if (static::$model) {
+                return new static::$model($this->items[$key]);
+            }
+
             return $this->items[$key];
         }
 

@@ -228,7 +228,7 @@ class App
                         );
                     }
 
-                    $this->add('module.list', $name);
+                    $this->add('module.list', $name, $class);
                 }
             }
         }

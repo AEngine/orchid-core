@@ -41,13 +41,6 @@ class Collection implements CollectionInterface
     use Macroable;
 
     /**
-     * Full path of the model class
-     *
-     * @var string
-     */
-    protected static $model;
-
-    /**
      * Internal storage of models
      *
      * @var array
@@ -112,8 +105,8 @@ class Collection implements CollectionInterface
     /**
      * Set value of the element
      *
-     * @param int         $key
-     * @param Model|array $value
+     * @param int   $key
+     * @param mixed $value
      *
      * @return $this
      */
@@ -337,11 +330,7 @@ class Collection implements CollectionInterface
     public function get($key, $default = null)
     {
         if ($this->offsetExists($key)) {
-            if (static::$model) {
-                return new static::$model($this->items[$key]);
-            }
-
-            return $this->items[$key];
+            return $this->offsetGet($key);
         }
 
         return value($default);
@@ -1857,13 +1846,7 @@ class Collection implements CollectionInterface
      */
     public function current()
     {
-        $buf = $this->items[$this->key()];
-
-        if (static::$model) {
-            return new static::$model($buf);
-        }
-
-        return $buf;
+        return $this->offsetGet($this->key());
     }
 
     /**
@@ -1913,7 +1896,7 @@ class Collection implements CollectionInterface
      */
     public function valid()
     {
-        return $this->key() !== false && isset($this->items[$this->key()]);
+        return $this->key() !== false && $this->offsetExists($this->key());
     }
 
     /**
@@ -1969,10 +1952,6 @@ class Collection implements CollectionInterface
      */
     public function offsetGet($key)
     {
-        if (static::$model) {
-            return new static::$model($this->items[$key]);
-        }
-
         return $this->items[$key];
     }
 
@@ -1987,17 +1966,9 @@ class Collection implements CollectionInterface
     public function offsetSet($key, $value)
     {
         if (is_null($key)) {
-            if ($value instanceof Model) {
-                $this->items[] = $value->toArray();
-            } else {
-                $this->items[] = $value;
-            }
+            $this->items[] = $value;
         } else {
-            if ($value instanceof Model) {
-                $this->items[$key] = $value->toArray();
-            } else {
-                $this->items[$key] = $value;
-            }
+            $this->items[$key] = $value;
         }
 
         return $this;

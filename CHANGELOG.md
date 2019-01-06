@@ -2,7 +2,47 @@ Changelog
 ====
 The latest version of this file can be found at the master branch of the this repository.
 
-## 1.2.2 (2018-10-14)
+## 1.3.3 (2018-11-09)
+- Model has been removed from collection
+- `module.list` is `'name' => 'class'` array
+
+### 1.3.2-p1 (2018-11-02)
+- Hotfix collection work with her model
+
+### 1.3.2-p (2018-10-31)
+- Hotfix Response usage
+
+### 1.3.2 (2018-10-30)
+- More functions migrate to Container
+- Add service providers
+- Other fixes
+
+### 1.3.1 (2018-10-29)
+- Route closure use app as scope
+
+### 1.3.0-p3 (2018-10-27)
+- Fix ob cache usage
+
+### 1.3.0-p2 (2018-10-27)
+- Fix AnnotatedReflectionMethod usage
+- Fix ob cache clean
+
+### 1.3.0-p1 (2018-10-27)
+- Fix composer
+- Fix doc and other
+
+### 1.3.0 (2018-10-27)
+- Config, Request, Response and etc in Container
+- Collection update
+- Misc lib in package
+- Http lib in package
+- Annotation lib in package
+- Added helper functions
+- Reworked some code
+- Some fixes
+- Some optimizations
+
+### 1.2.2 (2018-10-14)
 - Update Orchid-Message package
 
 ### 1.2.1 (2018-10-01)
